@@ -4,6 +4,7 @@ import Numeric.LinearAlgebra.Static
 import Data.Packed.Static.Imports
 
 type Quat = Vector D4 Double
+type AttitudeMat = Matrix (D3, D3) Double
 
 qq :: Quat
 qq = [$vec| 0, 0, 0, 1|]
@@ -24,12 +25,11 @@ qre :: Quat -> Double
 qre q = q @> 3
 
 qvec :: Quat -> Vector D3 Double
-qvec q = let q0 = q @> 0
-             q1 = q @> 1
-             q2 = q @> 2
-        in [$vec| q0, q1, q2 |]
-
-type AttitudeMat = Matrix (D3, D3) Double
+qvec q = [$vec| q0, q1, q2 |]
+         where q0 = q @> 0
+               q1 = q @> 1
+               q2 = q @> 2
+        
 attMatOfQ :: Quat -> AttitudeMat
 attMatOfQ qq = liftMatrix (*constant  (q*q - e <.> e)) (ident `atRows` d3) + 
                liftMatrix (*constant 2)  (outer e e) -
