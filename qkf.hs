@@ -1,3 +1,6 @@
+-- Quaternion Kalman Filter for attitude estimation
+-- Pat Hickey 15 Mar 10
+
 {-# LANGUAGE QuasiQuotes, NoMonomorphismRestriction #-}
 -- 9 out of 10 computer scientists recommend hmatrix-static
 import Numeric.LinearAlgebra.Static
