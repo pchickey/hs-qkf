@@ -2,7 +2,6 @@
 
 import Numeric.LinearAlgebra.Static
 import Data.Packed.Static.Imports
-import qualified Numeric.LinearAlgebra.Linear as Lin
 
 type Quat = Vector D4 Double
 
@@ -37,6 +36,6 @@ attMatOfQ qq = let q = qre qq
                    et = trans e
                    ete = (et <> e) @@> (0,0)
                    ex = crossProdMat ev
-               in Lin.scale (q*q - ete) (ident `atRows` d3) + 
-                  Lin.scale 2  ( e <> et ) -
-                  Lin.scale (2*q)  ex
+               in liftMatrix (*constant  (q*q - ete)) (ident `atRows` d3) + 
+                  liftMatrix (*constant 2)  ( e <> et ) -
+                  liftMatrix (*constant (2*q))  ex
