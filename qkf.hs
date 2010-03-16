@@ -8,14 +8,17 @@ import Numeric.LinearAlgebra.Static
 import Data.Packed.Static.Imports
 
 type Quat = Vector D4 Double
+type Vec3 = Vector D3 Double
 type AttitudeMat = Matrix (D3, D3) Double
 
 type MagCovMat = Matrix (D3, D3) Double
 type AccCovMat = Matrix (D3, D3) Double
 type GyroCovMat = Matrix (D3, D3) Double
 
-type BodyFQuat = Quat
-type RefFQuat = Quat
+type BodyFrameVec = Vec3
+type RefFrameVec = Vec3
+-- Observations are of form 0 = Hnot*q
+type ObservationMat = Matrix (D4,D4) Double
 
 qq :: Quat
 qq = [$vec| 0, 0, 0, 1|]
@@ -52,11 +55,16 @@ attMatOfQ qq = liftMatrix (*constant  (q*q - e <.> e)) (ident `atRows` d3) +
 --negM = liftMatrix (*constant (-1))
 
 vecQRightMat :: Vector D3 Double -> Matrix (D4, D4) Double
-vecQRightMat b = fromBlocks33to44 negBoX bo  negBot [$mat| 0 |]
-                 where negBoX = liftMatrix (*constant (-1)) (crossProdMat b)
+vecQRightMat b = fromBlocks33to44 negboX bo  negbot [$mat| 0 |]
+                 where negboX = liftMatrix (*constant (-1)) (crossProdMat b)
                        bo = asColumn b
-                       negBot = liftMatrix (*constant (-1)) (asRow b)
+                       negbot = liftMatrix (*constant (-1)) (asRow b)
 
+vecQLeftMat :: Vector D3 Double -> Matrix (D4, D4) Double
+vecQLeftMat b = fromBlocks33to44 boX bo  negbot [$mat| 0 |]
+                 where boX = crossProdMat b
+                       bo = asColumn b
+                       negbot = liftMatrix (*constant (-1)) (asRow b)
 -- ugly version:
 fromBlocks33to44 :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
 fromBlocks33to44  (viewMat -> [$mat|a, b, c;
@@ -69,6 +77,24 @@ fromBlocks33to44  (viewMat -> [$mat|a, b, c;
                                                   g, h, i, l;
                                                   m, n, o, p|]
 -- less ugly version which doesn't work:
+-- fromBlocks33to44' :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
+-- fromBlocks33to44' a b c d = fromBlocksU [[ a, b],[ c, d]] `atShape` (d4, d4)
+
+-- Use the proper operators:
 fromBlocks33to44' :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
-fromBlocks33to44' a b c d = fromBlocksU [[ a, b],[ c, d]] `atShape` (d4, d4)
+fromBlocks33to44' a b c d = (( a <|> b ) <-> ( c <|> d ))
+
+observationMatOf :: RefFrameVec -> BodyFrameVec -> ObservationMat
+observationMatOf r b = (fromBlocks33to44  negsx (asColumn d)  
+                                          negdt [$mat|0|])
+                       where s = liftVector2 (*) (constant 0.5) (b + r)
+                             d = liftVector2 (*) (constant 0.5) (b - r)
+                             negsx = liftMatrix (*constant (-1)) (crossProdMat s)
+                             negdt = (liftMatrix (*constant (-1)) (asRow d))
+
+
+
+
+
+
 
