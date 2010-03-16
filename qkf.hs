@@ -57,7 +57,7 @@ vecQRightMat b = fromBlocks33to44 negBoX bo  negBot [$mat| 0 |]
                        bo = asColumn b
                        negBot = liftMatrix (*constant (-1)) (asRow b)
 
--- Oh Dear God this is ugly:
+-- ugly version:
 fromBlocks33to44 :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
 fromBlocks33to44  (viewMat -> [$mat|a, b, c;
                                     d, e, f;
@@ -68,5 +68,7 @@ fromBlocks33to44  (viewMat -> [$mat|a, b, c;
                                                   d, e, f, k;
                                                   g, h, i, l;
                                                   m, n, o, p|]
-
+-- less ugly version which doesn't work:
+fromBlocks33to44' :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
+fromBlocks33to44' a b c d = fromBlocksU [[ a, b],[ c, d]] `atShape` (d4, d4)
 
