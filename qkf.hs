@@ -11,15 +11,15 @@ import Data.Packed.Static.Imports
 type Time = Double
 -- vec first {i j k}, then re
 type Quat = Vector D4 Double
+type QuatCovMat = Matrix (D4, D4) Double
 -- Defined in paper, but we don't use it?
 type AttitudeMat = Matrix (D3, D3) Double
 -- All 3-space Measurments are zero-mean
-type MagCovMat = Matrix (D3, D3) Double
-type AccCovMat = Matrix (D3, D3) Double
+type MeasurmentCovMat = Matrix (D3, D3) Double
 type RateCovMat = Matrix (D3, D3) Double
 -- 3-space vectors for acc,mag
-type BodyFrameVec = Vector D3 Double
-type RefFrameVec = Vector D3 Double
+type BodyVec = Vector D3 Double
+type RefVec = Vector D3 Double
 -- 3-space angular rate, measured in Body frame
 type AngularRate = Vector D3 Double
 -- Observations are of form 0 = Hnot*q
@@ -30,6 +30,25 @@ type ZetaMat = Matrix (D4,D3) Double
 type TransitionMat = Matrix (D4,D4) Double
 
 
+data FilterState = 
+  FilterState{ q :: Quat
+             , p :: QuatCovMat } deriving( Show, Eq )
+
+data RateEstimate = 
+  RateEstimate{ omega   :: AngularRate
+              , qke :: RateCovMat
+              , dt      :: Time } deriving( Show, Eq )
+
+data MeasurmentSource = Accelerometer
+                      | Magnetometer deriving( Show, Eq )
+
+data Measurment =
+  Measurment{ source  :: MeasurmentSource
+            , body    :: BodyVec
+            , ref     :: RefVec
+            , meascov :: MeasurmentCovMat }  deriving( Show, Eq )
+
+-- sample vectors for using in ghci
 qq :: Quat
 qq = [$vec| 0, 0, 0, 1|]
 
@@ -76,13 +95,13 @@ vecQLeftMat b = ((boX <|> bo) <-> (negbot <|> [$mat| 0 |]))
                        bo = asColumn b
                        negbot = liftMatrix (*constant (-1)) (asRow b)
 
-observationMatOf :: RefFrameVec -> BodyFrameVec -> ObservationMat
+observationMatOf :: RefVec -> BodyVec -> ObservationMat
 observationMatOf r b = ( (negsx <|> asColumn d) <->
                          (negdt <|> [$mat|0|]))
                        where s = liftVector2 (*) (constant 0.5) (b + r)
                              d = liftVector2 (*) (constant 0.5) (b - r)
                              negsx = liftMatrix (*constant (-1)) (crossProdMat s)
-                             negdt = (liftMatrix (*constant (-1)) (asRow d))
+                             negdt = liftMatrix (*constant (-1)) (asRow d)
 zetaMatOf :: Quat -> ZetaMat
 zetaMatOf qq = (ex + liftMatrix (* constant q) (ident `atRows` d3)) <-> 
                (liftMatrix (* constant (-1)) (asRow e))
@@ -94,6 +113,33 @@ transitionMatOf :: AngularRate -> Time -> TransitionMat
 transitionMatOf w dt = expm omegadt
                        where omega = vecQRightMat w
                              omegadt = liftMatrix (* constant dt) omega
+
+timePropogate :: RateEstimate -> FilterState -> FilterState
+timePropogate r s = FilterState { q = phi <> (q s)
+                                , p = phi <> (p s) <> (trans phi) + qkq }
+                                where phi = transitionMatOf (omega r) (dt r)
+                                      zeta = zetaMatOf (q s)
+                                      zetat = ((dt r)/2)^2
+                                      qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))
+
+measurmentUpdate :: Measurment -> FilterState -> FilterState
+measurmentUpdate m s = FilterState { q = up <> (q s)
+                                   , p = up <> (p s) <> (trans up) +
+                                         k <> rq <> (trans k) }
+                                   where i4 = ident `atRows` d4
+                                         alpha = 0.001
+                                         h = observationMatOf (m ref) (m body)
+                                         ht = (trans h)
+                                         zeta = zetaMatOf (q s)
+                                         rq = (liftMatrix (*constant 0.25) 
+                                                  (zeta <> (meascov m) <> (trans zeta))) + 
+                                              (liftMatrix (*constant alpha) i4)
+                                         sk = h <> (p s) <> ht + rq 
+                                         k = (p s) <> ht <> (inv sk)  
+                                         up = (i4 - k <> h)
+
+
+
 
 
 
