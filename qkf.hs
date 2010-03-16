@@ -7,18 +7,28 @@
 import Numeric.LinearAlgebra.Static
 import Data.Packed.Static.Imports
 
+-- for deltaT and so on
+type Time = Double
+-- vec first {i j k}, then re
 type Quat = Vector D4 Double
-type Vec3 = Vector D3 Double
+-- Defined in paper, but we don't use it?
 type AttitudeMat = Matrix (D3, D3) Double
-
+-- All 3-space Measurments are zero-mean
 type MagCovMat = Matrix (D3, D3) Double
 type AccCovMat = Matrix (D3, D3) Double
-type GyroCovMat = Matrix (D3, D3) Double
-
-type BodyFrameVec = Vec3
-type RefFrameVec = Vec3
+type RateCovMat = Matrix (D3, D3) Double
+-- 3-space vectors for acc,mag
+type BodyFrameVec = Vector D3 Double
+type RefFrameVec = Vector D3 Double
+-- 3-space angular rate, measured in Body frame
+type AngularRate = Vector D3 Double
 -- Observations are of form 0 = Hnot*q
 type ObservationMat = Matrix (D4,D4) Double
+-- Observation noise maps 3space to quat space
+type ZetaMat = Matrix (D4,D3) Double
+-- Translate qspace to qspace
+type TransitionMat = Matrix (D4,D4) Double
+
 
 qq :: Quat
 qq = [$vec| 0, 0, 0, 1|]
@@ -55,45 +65,32 @@ attMatOfQ qq = liftMatrix (*constant  (q*q - e <.> e)) (ident `atRows` d3) +
 --negM = liftMatrix (*constant (-1))
 
 vecQRightMat :: Vector D3 Double -> Matrix (D4, D4) Double
-vecQRightMat b = fromBlocks33to44 negboX bo  negbot [$mat| 0 |]
+vecQRightMat b = ((negboX <|> bo) <-> (negbot <|> [$mat| 0 |]))
                  where negboX = liftMatrix (*constant (-1)) (crossProdMat b)
                        bo = asColumn b
                        negbot = liftMatrix (*constant (-1)) (asRow b)
 
 vecQLeftMat :: Vector D3 Double -> Matrix (D4, D4) Double
-vecQLeftMat b = fromBlocks33to44 boX bo  negbot [$mat| 0 |]
+vecQLeftMat b = ((boX <|> bo) <-> (negbot <|> [$mat| 0 |]))
                  where boX = crossProdMat b
                        bo = asColumn b
                        negbot = liftMatrix (*constant (-1)) (asRow b)
--- ugly version:
-fromBlocks33to44 :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
-fromBlocks33to44  (viewMat -> [$mat|a, b, c;
-                                    d, e, f;
-                                    g, h, i|])
-                  (viewMat -> [$mat|j; k; l|])
-                  (viewMat -> [$mat|m, n, o|])
-                  (viewMat -> [$mat|p|]) = [$mat|a, b, c, j;
-                                                  d, e, f, k;
-                                                  g, h, i, l;
-                                                  m, n, o, p|]
--- less ugly version which doesn't work:
--- fromBlocks33to44' :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
--- fromBlocks33to44' a b c d = fromBlocksU [[ a, b],[ c, d]] `atShape` (d4, d4)
-
--- Use the proper operators:
-fromBlocks33to44' :: Matrix (D3,D3) Double -> Matrix (D3,D1) Double -> Matrix (D1,D3) Double -> Matrix (D1,D1) Double -> Matrix (D4, D4) Double
-fromBlocks33to44' a b c d = (( a <|> b ) <-> ( c <|> d ))
 
 observationMatOf :: RefFrameVec -> BodyFrameVec -> ObservationMat
-observationMatOf r b = (fromBlocks33to44  negsx (asColumn d)  
-                                          negdt [$mat|0|])
+observationMatOf r b = ( (negsx <|> asColumn d) <->
+                         (negdt <|> [$mat|0|]))
                        where s = liftVector2 (*) (constant 0.5) (b + r)
                              d = liftVector2 (*) (constant 0.5) (b - r)
                              negsx = liftMatrix (*constant (-1)) (crossProdMat s)
                              negdt = (liftMatrix (*constant (-1)) (asRow d))
-
-
-
+zetaMatOf :: Quat -> ZetaMat
+zetaMatOf qq = (ex + liftMatrix (* constant q) (ident `atRows` d3)) <-> 
+               (liftMatrix (* constant (-1)) (asRow e))
+               where q = qre qq
+                     e = qvec qq
+                     ex = crossProdMat e
+transitionMatOf :: AngularRate -> Time -> 
+transitionMatOf w qk 
 
 
 
