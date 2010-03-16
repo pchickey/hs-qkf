@@ -89,8 +89,11 @@ zetaMatOf qq = (ex + liftMatrix (* constant q) (ident `atRows` d3)) <->
                where q = qre qq
                      e = qvec qq
                      ex = crossProdMat e
-transitionMatOf :: AngularRate -> Time -> 
-transitionMatOf w qk 
+
+transitionMatOf :: AngularRate -> Time -> TransitionMat
+transitionMatOf w dt = expm omegadt
+                       where omega = vecQRightMat w
+                             omegadt = liftMatrix (* constant dt) omega
 
 
 
