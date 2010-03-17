@@ -30,23 +30,36 @@ getLineMaybe s = do { c <- recvChar s;
                                       return(cs) }
                     }
 
+defaultcov :: MeasurmentCovMat
+defaultcov = [$mat|0.001, 0, 0;
+                   0, 0.001, 0;
+                   0, 0, 0.001|]
+
 parseLine :: [Char] -> Maybe Measurment
 parseLine cs = let prefix = take 2 cs 
                in case prefix of
                "$A" -> Just Measurment { source = Accelerometer
-                                       , body = [$vec|0,0,0|]
-                                       , ref = [$vec|0,0,0|]
-                                       , meascov = [$mat|0,0,0;0,0,0;0,0,0|]}
+                                       , body =  vecOfCsv cs
+                                       , ref = [$vec|0,0,(-1.0)|]
+                                       , meascov = defaultcov}
                "$M" -> Just Measurment { source = Magnetometer
-                                       , body = [$vec|0,0,0|]
-                                       , ref = [$vec|0,0,0|]
-                                       , meascov = [$mat|0,0,0;0,0,0;0,0,0|]}
+                                       , body =  vecOfCsv cs 
+                                       , ref = [$vec|1.0,0,0|]
+                                       , meascov = defaultcov}
                "$G" -> Just Measurment { source = Gyro
-                                       , body = [$vec|0,0,0|]
+                                       , body =  vecOfCsv cs
                                        , ref = [$vec|0,0,0|]
-                                       , meascov = [$mat|0,0,0;0,0,0;0,0,0|]}
+                                       , meascov = defaultcov}
                _ -> Nothing
 
+vecOfCsv :: [Char] -> Vector D3 Double
+vecOfCsv cs = let s = drop 3 cs
+                  (x,y,z) = read s :: (Double,Double,Double)
+                  h = (d1 >< d3) [ x, y, z ]
+              in flatten h
+
+
+main :: IO ()
 main = do
   s <- serialBegin
   forever $ do
