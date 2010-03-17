@@ -40,7 +40,8 @@ data RateEstimate =
               , dt      :: Time } deriving( Show, Eq )
 
 data MeasurmentSource = Accelerometer
-                      | Magnetometer deriving( Show, Eq )
+                      | Magnetometer 
+                      | Gyro deriving( Show, Eq )
 
 data Measurment =
   Measurment{ source  :: MeasurmentSource
