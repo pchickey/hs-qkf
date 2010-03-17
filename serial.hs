@@ -8,6 +8,7 @@ import Control.Monad
 import Control.Monad.Loops
 import Control.Concurrent
 import Numeric.LinearAlgebra.Static
+import Text.Regex.TDFA
 import Qkf
 
 serialBegin :: IO SerialPort
@@ -35,21 +36,35 @@ defaultcov = [$mat|0.001, 0, 0;
                    0, 0.001, 0;
                    0, 0, 0.001|]
 
-parseLine :: [Char] -> Maybe Measurment
+data RawMeasurment =
+  RawMeasurment { rsource :: MeasurmentSource
+                , rx :: Double
+                , ry :: Double 
+                , rz :: Double } deriving (Show, Eq)
+
+rawOf :: MeasurmentSource -> [Char] -> Maybe RawMeasurment
+rawOf m s = let vs = split s ','
+            in case map read vs of
+              x:y:z:[] ->  Just RawMeasurment{ rsource = m
+                                             , rx = x
+                                             , ry = y
+                                             , rz = z }
+              _ -> Nothing
+
+split :: String -> Char -> [String]
+split [] _ = [""]
+split (c:cs) delim 
+  | c == delim = "" : rest
+  | otherwise = ( c: head rest ) : tail rest
+  where rest = split cs delim
+
+
+parseLine :: [Char] -> Maybe RawMeasurment
 parseLine cs = let prefix = take 2 cs 
                in case prefix of
-               "$A" -> Just Measurment { source = Accelerometer
-                                       , body =  vecOfCsv cs
-                                       , ref = [$vec|0,0,(-1.0)|]
-                                       , meascov = defaultcov}
-               "$M" -> Just Measurment { source = Magnetometer
-                                       , body =  vecOfCsv cs 
-                                       , ref = [$vec|1.0,0,0|]
-                                       , meascov = defaultcov}
-               "$G" -> Just Measurment { source = Gyro
-                                       , body =  vecOfCsv cs
-                                       , ref = [$vec|0,0,0|]
-                                       , meascov = defaultcov}
+               "$A" -> rawOf Accelerometer $ drop 3 cs
+               "$M" -> rawOf Magnetometer $ drop 3 cs
+               "$G" -> rawOf Gyro $ drop 3 cs
                _ -> Nothing
 
 vecOfCsv :: [Char] -> Vector D3 Double
