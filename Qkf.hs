@@ -1,8 +1,8 @@
 -- Quaternion Kalman Filter for attitude estimation
 -- Pat Hickey 15 Mar 10
-
 {-# LANGUAGE QuasiQuotes, NoMonomorphismRestriction, TypeOperators, FlexibleContexts 
     , ViewPatterns, ScopedTypeVariables #-}
+module Qkf where
 -- 9 out of 10 computer scientists recommend hmatrix-static
 import Numeric.LinearAlgebra.Static
 import Data.Packed.Static.Imports
