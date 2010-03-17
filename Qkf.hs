@@ -128,7 +128,7 @@ measurmentUpdate m s = FilterState { q = up <> (q s)
                                          k <> rq <> (trans k) }
                                    where i4 = ident `atRows` d4
                                          alpha = 0.001
-                                         h = observationMatOf (m ref) (m body)
+                                         h = observationMatOf (ref m) (body m)
                                          ht = (trans h)
                                          zeta = zetaMatOf (q s)
                                          rq = (liftMatrix (*constant 0.25) 
