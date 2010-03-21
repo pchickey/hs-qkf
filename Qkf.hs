@@ -72,7 +72,10 @@ qvec q = [$vec| q0, q1, q2 |]
          where q0 = q @> 0
                q1 = q @> 1
                q2 = q @> 2
-        
+unitq :: Quat -> Quat 
+unitq qq = qq / constant norm 
+           where norm = sqrt $ (qq@>0)*(qq@>0)+(qq@>1)*(qq@>1)+(qq@>2)*(qq@>2)+(qq@>3)*(qq@>3)
+
 attMatOfQ :: Quat -> AttitudeMat
 attMatOfQ qq = liftMatrix (*constant  (q*q - e <.> e)) (ident `atRows` d3) + 
                liftMatrix (*constant 2)  (outer e e) -
@@ -115,7 +118,7 @@ transitionMatOf w dt = expm omegadt
                              omegadt = liftMatrix (* constant dt) omega
 
 timePropogate :: RateEstimate -> FilterState -> FilterState
-timePropogate r s = FilterState { q = phi <> (q s)
+timePropogate r s = FilterState { q = unitq $ phi <> (q s)
                                 , p = phi <> (p s) <> (trans phi) + qkq }
                                 where phi = transitionMatOf (omega r) (dt r)
                                       zeta = zetaMatOf (q s)
@@ -123,7 +126,7 @@ timePropogate r s = FilterState { q = phi <> (q s)
                                       qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))
 
 measurmentUpdate :: Measurment -> FilterState -> FilterState
-measurmentUpdate m s = FilterState { q = up <> (q s)
+measurmentUpdate m s = FilterState { q = unitq $ up <> (q s)
                                    , p = up <> (p s) <> (trans up) +
                                          k <> rq <> (trans k) }
                                    where i4 = ident `atRows` d4
