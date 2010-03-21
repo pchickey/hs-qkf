@@ -8,7 +8,6 @@ import Control.Monad
 import Control.Monad.Loops
 import Control.Concurrent
 import Numeric.LinearAlgebra.Static
-import Text.Regex.TDFA
 import Qkf
 
 serialBegin :: IO SerialPort
