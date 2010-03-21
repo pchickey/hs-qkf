@@ -73,16 +73,16 @@ advanceRandAngle sm ang dt g = ( Angle { a = a', da = da' }, g')
                                      da' = sm * (da ang) + (1-sm) * gauss1 
                                      a' = (a ang) + da' * dt
                             
-advanceEuler :: (RandomGen g) => Eulers -> g -> (Eulers, g)
-advanceEuler e g = ( Eulers { alpha = alpha', beta = beta', gamma = (gamma e) } , g2 )
-                  where (alpha', g1) = advanceRandAngle smoothness (alpha e) 0.02 g
-                        (beta', g2) = advanceRandAngle smoothness (beta  e) 0.02 g1
-                        smoothness = 0.95
+advanceEulerR :: (RandomGen g) => Eulers -> g -> (Eulers, g)
+advanceEulerR e g = ( Eulers { alpha = alpha', beta = beta', gamma = (gamma e) } , g2 )
+                    where (alpha', g1) = advanceRandAngle smoothness (alpha e) 0.02 g
+                          (beta', g2) = advanceRandAngle smoothness (beta  e) 0.02 g1
+                          smoothness = 0.95
 
-generateWalk :: (RandomGen g) => Eulers -> g -> [Eulers]
-generateWalk x g = (v:vs)
-                   where (v, g') = advanceEuler x g
-                         vs = generateWalk v g'
+generateRWalk :: (RandomGen g) => Eulers -> g -> [Eulers]
+generateRWalk x g = (v:vs)
+                   where (v, g') = advanceEulerR x g
+                         vs = generateRWalk v g'
 
 toVecMeasurment :: (MeasurmentSource, RefVec) -> Eulers -> Measurment
 toVecMeasurment (s, r) e = Measurment{ source = s
@@ -100,6 +100,13 @@ toGyroMeasurment e = Measurment { source = Gyro
                            ry = da $ beta  e
                            rz = da $ gamma e
 
+qtoEtuple :: Quat -> (Double,Double,Double) -- quick n dirty; may be based on wrong convention
+qtoEtuple q = (phi, theta, psi)
+            where q0 = q @> 3; q1 = q @> 0; q2 = q @> 1; q3 = q @> 2
+                  phi = atan2 (2*(q0*q1+q2*q3)) (1-2*(q1*q1+q2+q2))
+                  theta = asin (2*(q0*q2-q3*q1))
+                  psi = atan2 (2*(q0*q3+q1*q2)) (1-2*(q2*q2+q3*q3))
+
 feedfilter :: [(Measurment, Measurment, Measurment)] -> (FilterState, RateEstimate) -> [(FilterState, RateEstimate)]
 feedfilter ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
                                       where s'acc = measurmentUpdate ma state
@@ -107,11 +114,38 @@ feedfilter ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
                                             rate' = rateEstimateUpdate mg 0.02 rate
                                             s'gyro = timePropogate rate' s'mag
                                             states = feedfilter ms (s'gyro, rate')
-main = do
+
+stateq0 = (@>0) . q . fst
+stateq1 = (@>1) . q . fst
+stateq2 = (@>2) . q . fst
+stateq3 = (@>3) . q . fst
+statenorm = sumsq . q . fst 
+          where sumsq qq = (qq@>0)*(qq@>0) + (qq@>1)*(qq@>1) + (qq@>2)*(qq@>2) + (qq@>3)*(qq@>3)
+stateqs fs = [ map stateq0 fs, map stateq1 fs, map stateq2 fs, map stateq3 fs , map statenorm fs]
+
+staticmeas m = (m:ms) where ms = staticmeas m
+statictest = do
+  let e = Eulers { alpha = Angle { a = pi/4, da = 0 }
+                 , beta =  Angle { a = pi/3, da = 0 }
+                 , gamma = Angle { a = -pi/10, da = 0 } }
+  let f = feedfilter (staticmeas 
+                      ( toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
+                     (fszero, rezero)
+  plotLists [] $ stateqs $ take 10 f
+
+
+rtest = do
   g <- getStdGen
-  let walk = generateWalk ezero g
+  let walk = generateRWalk ezero g
   let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
-  plotPath [] $ take 100 walkpairs
-  let measwalk = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) walk
-  let f = feedfilter measwalk (fszero, rezero)
-  return $ take 2 f
+  --plotPath [] $ take 100 walkpairs
+  let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
+  let f = feedfilter (meas walk) (fszero, rezero)
+  
+  --plotLists [] $ stateqs $ take 100 f
+
+  -- fangles isn't producing anything that makes much sense.
+  let fangles = map (qtoEtuple . q . fst) f
+  let fanglepairs = map (\(b,_,a) -> (a,b)) fangles
+  plotPaths [] $ map (take 100) [ walkpairs, fanglepairs ]
+  return ()
