@@ -21,17 +21,26 @@ This program has been developed and tested with:
 ghc 6.10
 hmatrix-static 0.3
 serialport 0.3.2
+gnuplot 0.3.3.1
 
 You may want to google for the hmatrix installation instructions to make sure you satisify library dependencies.
 
 The Display directory uses:
 opengl 2.4.0.1
 glut 2.2.2.0
-
+... but thats a mess of code I googled for at the moment. Hang tight.
 
 LICENSE
 ----------
 Copyright (c) 2010, Pat Hickey
 You may use and redistribute this software under a BSD license. Your mileage may vary.
-If you find it useful, I'd love to hear from you.
+If you find this code useful, or if you think it sucks, I'd love to hear from you.
 
+&C
+---------
+Thank You to the folks on #haskell, particularily Cale.
+Thank You to ST Micro and Invensense for hardware donations. 
+
+I wrote this code so I could fly airplanes with it. 
+Particularily, this one : http://www.youtube.com/watch?v=DySuDdg4M1I
+See my Paparazzi for Linux project for more info : http://moreproductive.org/autopilot/
