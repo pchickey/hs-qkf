@@ -5,7 +5,6 @@
 module Qkf where
 -- 9 out of 10 computer scientists recommend hmatrix-static
 import Numeric.LinearAlgebra.Static
-import Data.Packed.Static.Imports
 
 -- for deltaT and so on
 type Time = Double
@@ -139,9 +138,20 @@ measurmentUpdate m s = FilterState { q = up <> (q s)
                                          k = (p s) <> ht <> (inv sk)  
                                          up = (i4 - k <> h)
 
+rateEstimateUpdate :: Measurment -> Time -> RateEstimate -> RateEstimate
+rateEstimateUpdate Measurment { source = Gyro
+                              , ref = r } adt re = RateEstimate { omega = (omega re) + constant k * residual
+                                                                , qke = (qke re)
+                                                                , dt = adt }
+                                                   where k = 0.8
+                                                         residual = r - (omega re)
+rateEstimateUpdate _ _ re = re 
 
-
-
+rezero = RateEstimate { omega = [$vec|0,0,0|]
+                      , dt = 0.02
+                      , qke = liftMatrix (*constant 0.00001) (atRows ident d3) }
+fszero = FilterState { q = [$vec|0,0,0,1|]
+                     , p = liftMatrix (*constant 0.01) (atRows ident d4) }
 
 
 
