@@ -79,7 +79,39 @@ advanceEuler e g = ( Eulers { alpha = alpha', beta = beta', gamma = (gamma e) } 
                         (beta', g2) = advanceRandAngle smoothness (beta  e) 0.02 g1
                         smoothness = 0.95
 
+generateWalk :: (RandomGen g) => Eulers -> g -> [Eulers]
 generateWalk x g = (v:vs)
                    where (v, g') = advanceEuler x g
                          vs = generateWalk v g'
 
+toVecMeasurment :: (MeasurmentSource, RefVec) -> Eulers -> Measurment
+toVecMeasurment (s, r) e = Measurment{ source = s
+                                     , body = b
+                                     , ref = r
+                                     , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
+                           where b = (matOfEulers e) <> r
+toAccMeasurment = toVecMeasurment (Accelerometer, [$vec|0,0,(-1)|])
+toMagMeasurment = toVecMeasurment (Magnetometer, [$vec|1,0,0|])
+toGyroMeasurment e = Measurment { source = Gyro
+                                , body = [$vec|rx,ry,rz|]
+                                , ref = [$vec|0,0,0|]
+                                , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
+                     where rx = da $ alpha e
+                           ry = da $ beta  e
+                           rz = da $ gamma e
+
+feedfilter :: [(Measurment, Measurment, Measurment)] -> (FilterState, RateEstimate) -> [(FilterState, RateEstimate)]
+feedfilter ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
+                                      where s'acc = measurmentUpdate ma state
+                                            s'mag = measurmentUpdate mm s'acc
+                                            rate' = rateEstimateUpdate mg 0.02 rate
+                                            s'gyro = timePropogate rate' s'mag
+                                            states = feedfilter ms (s'gyro, rate')
+main = do
+  g <- getStdGen
+  let walk = generateWalk ezero g
+  let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
+  plotPath [] $ take 100 walkpairs
+  let measwalk = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) walk
+  let f = feedfilter measwalk (fszero, rezero)
+  return $ take 2 f
