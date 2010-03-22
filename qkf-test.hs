@@ -146,12 +146,14 @@ consttest = do
   let e = Eulers { alpha = Angle { a = 0, da = pi/4 }
                  , beta  = Angle { a = pi/6, da = 0 }
                  , gamma = Angle { a = pi/3, da = 0 } }
-  let walk = generateCWalk e 0.05 -- 50hz
+  let walk = generateCWalk e 0.05 
   let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
   let f = feedfilter (meas walk) (fszero, rezero) 
-  let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
-  let etuple = map ((\(_,b,c) -> (-1*c,-1*b)) . qtoEtuple . q . fst) f
-  plotPaths [] $ map (take 5) [walkpairs, etuple]
+  plotLists [] $ stateqs $ take 50 f
+  
+  --let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
+  --let etuple = map ((\(_,b,c) -> (-1*c,-1*b)) . qtoEtuple . q . fst) f
+  --plotPaths [] $ map (take 5) [walkpairs, etuple]
 
 rtest = do
   g <- getStdGen
