@@ -28,28 +28,38 @@ azero = Angle { a = 0, da = 0 }
 
 type RotMatrix = Matrix (D3,D3) Double
 
+-- zyx convention
+-- cf http://en.wikipedia.org/wiki/Euler_angles
 matOfEulers :: Eulers -> RotMatrix
-matOfEulers eulers = [$mat|c1*c3 - c2*s1*s3, (-1)*c3*s1 - c1*c2*s3, s2*s3;
-                           c2*c3*s1 + c1*s3, c1*c2*c3 - s1*s3,      (-1)*c3*s2;
-                           s1*s2,            c1*s2,                 c2|]
-                     where c1 = cos $ a $ alpha  eulers
-                           s1 = sin $ a $ alpha  eulers
-                           c2 = cos $ a $ beta   eulers
-                           s2 = sin $ a $ beta   eulers
-                           c3 = cos $ a $ gamma  eulers
-                           s3 = sin $ a $ gamma  eulers
-
+matOfEulers eulers = [$mat|c1*c2           , -c2*s1          , s2;
+                           c3*s1 + c1*s2*s3, c1*c3 - s1*s2*s3, c2*s3;
+                           s1*s3 - c1*c3*s2, c3*s1*s2 + c1*s3, c2*c3|]
+                     where c1 = cos . a . alpha $ eulers
+                           s1 = sin . a . alpha $ eulers
+                           c2 = cos . a . beta  $ eulers
+                           s2 = sin . a . beta  $ eulers
+                           c3 = cos . a . gamma $ eulers
+                           s3 = sin . a . gamma $ eulers
+-- zyx convention
+-- cf http://planetphysics.org/encyclopedia/EulerAngleVelocityOf123Sequence.html
 rateOfEulers :: Eulers -> Vector D3 Double
-rateOfEulers eulers = [$vec| alphadot * sinbeta * singamma + betadot * cosgamma,
-                             alphadot * sinbeta * cosgamma - betadot * singamma,
-                             alphadot * cosbeta + gammadot |]
-                      where alphadot = da $ alpha  eulers
-                            betadot  = da $ beta   eulers
-                            gammadot = da $ gamma  eulers
-                            sinbeta  = sin $ a $ beta   eulers
-                            cosbeta  = cos $ a $ beta   eulers
-                            singamma = sin $ a $ gamma  eulers
-                            cosgamma = cos $ a $ gamma  eulers
+rateOfEulers eulers = [$vec| gammadot * cosbeta * cosalpha + betadot * sinalpha,
+                             betadot * cosalpha  - gammadot * sinalpha * cosbeta,
+                             gammadot * sinbeta + alphadot |]
+                      where alphadot = da . alpha $ eulers
+                            betadot  = da . beta  $ eulers
+                            gammadot = da . gamma $ eulers
+                            sinalpha = sin . a . alpha $ eulers
+                            cosalpha = cos . a . alpha $ eulers
+                            sinbeta  = sin . a . beta  $ eulers
+                            cosbeta  = cos . a . beta  $ eulers
+                            singamma = sin . a . gamma $ eulers
+                            cosgamma = cos . a . gamma $ eulers
+
+generateCWalk :: Eulers -> Time -> [Eulers]
+generateCWalk e dt = (e:es)
+                  where e' = advanceConst e dt
+                        es = generateCWalk e' dt
 
 advanceConst :: Eulers -> Time -> Eulers
 advanceConst eulers t = Eulers { alpha = advanceAngle (alpha eulers) t
@@ -93,14 +103,12 @@ toVecMeasurment (s, r) e = Measurment{ source = s
 toAccMeasurment = toVecMeasurment (Accelerometer, [$vec|0,0,(-1)|])
 toMagMeasurment = toVecMeasurment (Magnetometer, [$vec|1,0,0|])
 toGyroMeasurment e = Measurment { source = Gyro
-                                , body = [$vec|rx,ry,rz|]
+                                , body = rateOfEulers e
                                 , ref = [$vec|0,0,0|]
                                 , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
-                     where rx = da $ alpha e
-                           ry = da $ beta  e
-                           rz = da $ gamma e
 
 qtoEtuple :: Quat -> (Double,Double,Double) -- quick n dirty; may be based on wrong convention
+
 qtoEtuple q = (phi, theta, psi)
             where q0 = q @> 3; q1 = q @> 0; q2 = q @> 1; q3 = q @> 2
                   phi = atan2 (2*(q0*q1+q2*q3)) (1-2*(q1*q1+q2+q2))
@@ -121,18 +129,33 @@ stateq2 = (@>2) . q . fst
 stateq3 = (@>3) . q . fst
 statenorm = sumsq . q . fst 
           where sumsq qq = (qq@>0)*(qq@>0) + (qq@>1)*(qq@>1) + (qq@>2)*(qq@>2) + (qq@>3)*(qq@>3)
-stateqs fs = [ map stateq0 fs, map stateq1 fs, map stateq2 fs, map stateq3 fs , map statenorm fs]
+stateqs fs = map (`map` fs) [ stateq0, stateq1, stateq2, stateq3]
 
-staticmeas m = (m:ms) where ms = staticmeas m
 statictest = do
-  let e = Eulers { alpha = Angle { a = pi/4, da = 0 }
-                 , beta =  Angle { a = pi/3, da = 0 }
-                 , gamma = Angle { a = -pi/10, da = 0 } }
-  let f = feedfilter (staticmeas 
+  let e = Eulers { alpha = Angle { a = pi/12, da = 0 }
+                 , beta =  Angle { a = pi/6, da = 0 }
+                 , gamma = Angle { a = 0, da = 0 } }
+  let f = feedfilter (repeat 
                       ( toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
                      (fszero, rezero)
   plotLists [] $ stateqs $ take 10 f
+  plotPath [] $ take 10 $  map ((\(a,b,c) -> (c,b)) . qtoEtuple . q . fst) f
 
+
+consttest = do
+  let e = Eulers { alpha = Angle { a = 0, da = pi/4 }
+                 , beta  = Angle { a = pi/6, da = 0 }
+                 , gamma = Angle { a = pi/3, da = 0 } }
+  let walk = generateCWalk e 0.1 -- 50hz
+  let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
+  let f = feedfilter (meas walk) (fszero, rezero) 
+  let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
+  let etuple = map (qtoEtuple . q . fst) f
+  let pair1 (a,b,_) = (a,b)
+  let pair2 (a,_,b) = (a,b)
+  let pair3 (_,a,b) = (a,b)
+  -- print $ show $ take 5 (meas walk)
+  plotPaths [] $ map (take 5) [walkpairs, map pair1 etuple, map pair2 etuple, map pair3 etuple ]
 
 rtest = do
   g <- getStdGen
@@ -146,6 +169,6 @@ rtest = do
 
   -- fangles isn't producing anything that makes much sense.
   let fangles = map (qtoEtuple . q . fst) f
-  let fanglepairs = map (\(b,_,a) -> (a,b)) fangles
+  let fanglepairs = map (\(a,_,b) -> (a,b)) fangles
   plotPaths [] $ map (take 100) [ walkpairs, fanglepairs ]
   return ()
