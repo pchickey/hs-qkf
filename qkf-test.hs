@@ -139,23 +139,19 @@ statictest = do
                       ( toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
                      (fszero, rezero)
   plotLists [] $ stateqs $ take 10 f
-  plotPath [] $ take 10 $  map ((\(a,b,c) -> (c,b)) . qtoEtuple . q . fst) f
+  plotPath [] $ take 10 $  map ((\(a,b,c) -> (-1*c,-1*b)) . qtoEtuple . q . fst) f
 
 
 consttest = do
   let e = Eulers { alpha = Angle { a = 0, da = pi/4 }
                  , beta  = Angle { a = pi/6, da = 0 }
                  , gamma = Angle { a = pi/3, da = 0 } }
-  let walk = generateCWalk e 0.1 -- 50hz
+  let walk = generateCWalk e 0.05 -- 50hz
   let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
   let f = feedfilter (meas walk) (fszero, rezero) 
   let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
-  let etuple = map (qtoEtuple . q . fst) f
-  let pair1 (a,b,_) = (a,b)
-  let pair2 (a,_,b) = (a,b)
-  let pair3 (_,a,b) = (a,b)
-  -- print $ show $ take 5 (meas walk)
-  plotPaths [] $ map (take 5) [walkpairs, map pair1 etuple, map pair2 etuple, map pair3 etuple ]
+  let etuple = map ((\(_,b,c) -> (-1*c,-1*b)) . qtoEtuple . q . fst) f
+  plotPaths [] $ map (take 5) [walkpairs, etuple]
 
 rtest = do
   g <- getStdGen
