@@ -100,7 +100,7 @@ toVecMeasurment s r e =
   Measurment{ source = s
             , body = (matOfEulers e) <> r
             , ref = r
-            , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
+            , meascov = liftMatrix (* constant 0.00001) (atRows ident d3) }
 
 toAccMeasurment = toVecMeasurment Accelerometer [$vec|0,0,-1|] 
 toMagMeasurment = toVecMeasurment Magnetometer [$vec|1,0,0|] 
@@ -110,7 +110,7 @@ toGyroMeasurment e edot =
   Measurment { source = Gyro
              , body = (ematOfEulers e) <> edot 
              , ref = [$vec|0,0,0|]
-             , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
+             , meascov = liftMatrix (* constant 0.01) (atRows ident d3) }
 
 -- given: initial euler angles, list of derivatives, time step between derivatives
 -- produces: list of resulting euler angles
@@ -167,7 +167,7 @@ main = velocitytest
 
 velocitytest = do
   let einit = [$vec| pi/4, pi/2, 0 |] :: Eulers
-  let edot = [$vec|pi/4, 0, 0|] :: WorldAngularRate
+  let edot = [$vec|pi/4, pi/12, 0|] :: WorldAngularRate
   let edots = repeat edot 
   let dt = 0.05 -- 20hz
   let walk = generateWalk einit edots dt
