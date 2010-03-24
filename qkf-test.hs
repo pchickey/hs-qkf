@@ -10,7 +10,8 @@ import Numeric.LinearAlgebra.Static
 import Graphics.Gnuplot.Simple
 import Qkf
 
--- All Euler angles use the 313 convention
+-- All Euler angles use the 313 convention. I realize the aerospace convention is 123 but I goofed;
+-- for testing purposes we can continue to use 313
 -- see "Representing Attitude: Euler Angles, Unit QUaternions, and Rotation Vectors" James Diebel 2006
 -- for reference on all conversions.
 type Angle = Double
@@ -54,13 +55,14 @@ q2 = (@>1)
 q3 :: Quat -> Double
 q3 = (@>2) 
 
--- Make a quaternion from Euler angles. Deibel (66)
+-- Make a quaternion from Euler angles. Deibel (66), except re-ordered with real component last
+-- to fit type Quat convention.
 qOfEulers :: Eulers -> Quat
 qOfEulers eulers = 
-  [$vec| cphi * cthe * cpsi - sphi * cthe * spsi,
-         cphi * cpsi * sthe + sphi * sthe * spsi,
+  [$vec| cphi * cpsi * sthe + sphi * sthe * spsi,
          cphi * sthe * spsi - sphi * cpsi * sthe,
-         cphi * cthe * spsi + cthe * cpsi * sphi |]
+         cphi * cthe * spsi + cthe * cpsi * sphi,
+         cphi * cthe * cpsi - sphi * cthe * spsi|]
   where 
     cphi = cos . (/2) . phi   $ eulers 
     sphi = sin . (/2) . phi   $ eulers 
@@ -68,6 +70,13 @@ qOfEulers eulers =
     sthe = sin . (/2) . theta $ eulers 
     cpsi = cos . (/2) . psi   $ eulers
     spsi = sin . (/2) . psi   $ eulers
+
+eulersOfQ :: Quat -> Eulers
+eulersOfQ q =
+  [$vec| atan2 (2*qq1*qq3 - 2*qq0*qq2) (2*qq2*qq3 + 2*qq0*qq1),
+         acos (qq3*qq3 - qq2*qq2 - qq1*qq1 + qq0*qq0),
+         atan2 (2*qq1*qq3 + 2*qq0*qq2) (2*qq0*qq1 - 2*qq2*qq3) |]
+  where qq0 = q0 q; qq1 = q1 q; qq2 = q2 q; qq3 = q3 q
 
 -- Euler Angle Rate Matrix
 -- omega = E(u) * udot  where omega is body fixed angular rates, u is euler angles
@@ -98,7 +107,7 @@ toMagMeasurment = toVecMeasurment Magnetometer [$vec|1,0,0|]
 toGyroMeasurment :: Eulers -> WorldAngularRate-> Measurment
 toGyroMeasurment e edot = 
   Measurment { source = Gyro
-             , body = edot -- TODO -- bring to body frame from world frame
+             , body = (ematOfEulers e) <> edot 
              , ref = [$vec|0,0,0|]
              , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
 
@@ -120,20 +129,34 @@ feedfilter ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
     s'gyro = timePropogate rate' s'mag
     states = feedfilter ms (s'gyro, rate')
 
+qaccs = [ q0, q1, q2, q3 ]
 statenorm = sumsq . q  
           where sumsq qq = (qq@>0)*(qq@>0) + (qq@>1)*(qq@>1) + (qq@>2)*(qq@>2) + (qq@>3)*(qq@>3)
-stateqs fs = map (`map` fs) [ q0 . q . fst , q1 . q . fst, q2 . q . fst, q3 . q . fst]
+
+-- The following two functions demonstrate my ignorance of Haskell:
+stateqs fs = map (\qacc -> map (qacc . q . fst) fs) qaccs
+justqs  qs = map (\qacc -> map qacc qs) qaccs
 
 -------------------------------------------------------------
 statictest = do
-  let e = [$vec| pi/4, pi/12, -pi/8 |]
+  let e = [$vec| pi/4, pi/12, -pi/8 |] :: Eulers
   let edot = [$vec| 0,0,0 |]
   let f = feedfilter (repeat 
                       (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
                      (fszero, rezero)
   plotLists [] $ stateqs $ take 10 f
-  --plotLists [] $ ( take 10  f ) 
- 
+  plotLists [] $ justqs $ take 10 $ repeat $ qOfEulers e
+  let q10th =  q . fst . last . take 10 $ f
+  putStrLn "Filtered quaternion after 10 iterations:"
+  putStrLn $ show q10th
+  putStrLn "Theoretical static quaternion:"
+  putStrLn $ show $ qOfEulers e
+  putStrLn "Supplied set of angles"
+  putStrLn $ show e
+  putStrLn "Set of angles derived from filtered quaternion"
+  putStrLn $ show $ eulersOfQ q10th
+
+
 -------------------------------------------------------------
 {-
 consttest = do
