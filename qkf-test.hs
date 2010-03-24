@@ -10,13 +10,10 @@ import Numeric.LinearAlgebra.Static
 import Graphics.Gnuplot.Simple
 import Qkf
 
-v1 = [$vec| 0, 1, 2, 3 |]
-v2 = [$vec| 1, 2, 1, 0 |]
-
 -- All Euler angles use the 313 convention
 -- see "Representing Attitude: Euler Angles, Unit QUaternions, and Rotation Vectors" James Diebel 2006
 -- for reference on all conversions.
-type Angle = Float
+type Angle = Double
 data Eulers = 
   Eulers { phi   :: Angle
          , theta :: Angle
@@ -30,12 +27,26 @@ matOfEulers eulers = [$mat| cphi*cpsi - sphi*cthe*spsi,  cphi*spsi + sphi*cthe*c
                             -sphi*cpsi - cphi*cthe*spsi,-sphi*spsi + cphi*cthe*cpsi, cphi*sthe;
                             sthe*spsi,                   sthe*cpsi,                   cthe      |]
   where 
-    cphi = cos . phi $ eulers
-    sphi = sin . phi $ eulers
+    cphi = cos . phi $ eulers 
+    sphi = sin . phi $ eulers 
     cthe = cos . theta $ eulers
-    sthe = sin . theta $ eulers
+    sthe = sin . theta $ eulers 
     cpsi = cos . psi $ eulers
     spsi = sin . psi $ eulers
+
+-- Quaternion convention:
+-- In the James Deibel paper, quaternions are [re i j k] ordered; 
+-- type Quat in module Qkf is [i j k re] ordered.
+-- Therefore, use these accessors for the component within this program
+q0 :: Quat -> Double
+q0 = (@>3) 
+q1 :: Quat -> Double
+q1 = (@>0)
+q2 :: Quat -> Double
+q2 = (@>1) 
+q3 :: Quat -> Double
+q3 = (@>2) 
+
 {- this is currently complete rubbish.
 rateOfEulers :: Eulers -> Vector D3 Double
 rateOfEulers eulers = [$vec| gammadot * cosbeta * cosalpha + betadot * sinalpha,
@@ -52,30 +63,33 @@ rateOfEulers eulers = [$vec| gammadot * cosbeta * cosalpha + betadot * sinalpha,
                             cosgamma = cos . a . gamma $ eulers
 -}
 -- just to get the program to typecheck:
-rateOfEulers _ = [$vec| 0, 0, 0]
+rateOfEulers :: Eulers -> Vector D3 Double
+rateOfEulers _ = [$vec| 0, 0, 0|]
 
+-- Constant walk: keeps a constant derivative, for now zero
 generateCWalk :: Eulers -> Time -> [Eulers]
 generateCWalk e dt = (e:es)
-                  where e' = advanceConst e dt
+                  where e' = advanceConst e ezero dt
                         es = generateCWalk e' dt
 
-advanceConst :: Eulers -> Time -> Eulers
-advanceConst eulers t = Eulers { alpha = advanceAngle (alpha eulers) t
-                               , beta  = advanceAngle (beta eulers) t
-                               , gamma = advanceAngle (gamma eulers) t }
+advanceConst :: Eulers -> Eulers -> Time -> Eulers
+advanceConst angle angledot dt = 
+  Eulers { phi   = advanceAngle (phi angle) (phi angledot) dt
+         , theta = advanceAngle (theta angle) (theta angledot) dt
+         , psi   = advanceAngle (psi angle) (psi angledot) dt }
 
-advanceAngle :: Angle -> Time -> Angle
-advanceAngle orig t = Angle { a = (a orig) + (da orig) * t
-                            , da = (da orig) }
+advanceAngle :: Angle -> Angle -> Time -> Angle
+advanceAngle a adot t = a + adot * t 
 
--- rosetta code provided a gaussian snippet, somewhat refactored
+-- rosetta code provided a gaussian snippet, somewhat refactored here
+-- weaves RandomGen in and out.
 gauss :: (RandomGen g) => Double -> g -> (Double, g)
-gauss sigma g = ( sigma * sqrt (-2 * log r1) * cos ( 2 * pi * r2 )
-                , g2 ) 
+gauss sigma g = ( sigma * sqrt (-2 * log r1) * cos ( 2 * pi * r2 ) , g2 ) 
   where 
     (r1, g1) = random g
     (r2, g2) = random g1
 
+{- needs rewriting. 
 advanceRandAngle :: (RandomGen g) => Double -> Angle -> Time -> g -> (Angle, g)
 advanceRandAngle sm ang dt g = ( Angle { a = a', da = da' }, g')
   where 
@@ -95,17 +109,18 @@ generateRWalk x g = (v:vs)
   where 
     (v, g') = advanceEulerR x g
     vs = generateRWalk v g'
+-}
 
-toVecMeasurment :: (MeasurmentSource, RefVec) -> Eulers -> Measurment
-toVecMeasurment (s, r) e = 
+toVecMeasurment :: MeasurmentSource -> RefVec -> Eulers -> Measurment
+toVecMeasurment s r e = 
   Measurment{ source = s
             , body = b
             , ref = r
             , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
   where b = (matOfEulers e) <> r
 
-toAccMeasurment = toVecMeasurment (Accelerometer, [$vec|0,0,(-1)|])
-toMagMeasurment = toVecMeasurment (Magnetometer, [$vec|1,0,0|])
+toAccMeasurment = toVecMeasurment Accelerometer [$vec|0,0,-1|] 
+toMagMeasurment = toVecMeasurment Magnetometer [$vec|1,0,0|] 
 
 toGyroMeasurment e = 
   Measurment { source = Gyro
@@ -122,29 +137,23 @@ feedfilter ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
     s'gyro = timePropogate rate' s'mag
     states = feedfilter ms (s'gyro, rate')
 
-stateq0 = (@>0) . q . fst
-stateq1 = (@>1) . q . fst
-stateq2 = (@>2) . q . fst
-stateq3 = (@>3) . q . fst
-statenorm = sumsq . q . fst 
+statenorm = sumsq . q  
           where sumsq qq = (qq@>0)*(qq@>0) + (qq@>1)*(qq@>1) + (qq@>2)*(qq@>2) + (qq@>3)*(qq@>3)
-stateqs fs = map (`map` fs) [ stateq0, stateq1, stateq2, stateq3]
+stateqs fs = map (`map` fs) [ q0 . q . fst , q1 . q . fst, q2 . q . fst, q3 . q . fst]
 
-anglelists f = [ map (qhead . q . fst) f
-               , map (qatt  . q . fst) f
-               , map (qbank . q . fst) f ]
 -------------------------------------------------------------
 statictest = do
-  let e = Eulers { alpha = Angle { a = pi/12, da = 0 }
-                 , beta =  Angle { a = pi/12, da = 0 }
-                 , gamma = Angle { a = pi/12, da = 0 } }
+  let e = Eulers { phi = pi/4
+                 , theta = pi/12
+                 , psi = -pi/4 }
   let f = feedfilter (repeat 
                       ( toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
                      (fszero, rezero)
   plotLists [] $ stateqs $ take 10 f
-  plotLists [] $ anglelists ( take 10  f ) 
+  --plotLists [] $ ( take 10  f ) 
  
 -------------------------------------------------------------
+{-
 consttest = do
   let e = Eulers { alpha = Angle { a = 0, da = pi/4 }
                  , beta  = Angle { a = pi/6, da = 0 }
@@ -158,8 +167,9 @@ consttest = do
   --let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
   --let etuple = map ((\(_,b,c) -> (-1*c,-1*b)) . qtoEtuple . q . fst) f
   --plotPaths [] $ map (take 5) [walkpairs, etuple]
-
+-}
 -----------------------------------------------------------------------
+{-
 rtest = do
   g <- getStdGen
   let walk = generateRWalk ezero g
@@ -175,4 +185,5 @@ rtest = do
   let fanglepairs = map (\(a,_,b) -> (a,b)) fangles
   plotPaths [] $ map (take 100) [ walkpairs, fanglepairs ]
   -}
-  return ()
+  return ()  
+-}
