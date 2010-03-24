@@ -112,6 +112,8 @@ toGyroMeasurment e edot =
              , ref = [$vec|0,0,0|]
              , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
 
+-- given: initial euler angles, list of derivatives, time step between derivatives
+-- produces: list of resulting euler angles
 generateWalk :: Eulers -> [WorldAngularRate]-> Time -> [Eulers]
 generateWalk e (edot:edots) dt = (e:es)
                   where e' = advanceConst e edot dt
@@ -119,7 +121,7 @@ generateWalk e (edot:edots) dt = (e:es)
 generateWalk _ [] _ = []
 
 -- I believe that, since the world frame Eulers are independent variables,
--- I can do a rectangular integration here without much fear.
+-- I can do a rectangular integration here safely.
 advanceConst :: Eulers -> WorldAngularRate -> Time -> Eulers
 advanceConst angle angledot dt = angle + (angledot * constant dt)
 
@@ -144,7 +146,7 @@ stateangles  as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) an
 angles as = map (\angleacc -> map angleacc as) angleaccs
 
 statictest = do
-  let e = [$vec| pi/2, pi/2, 0 |] :: Eulers
+  let e = [$vec| pi/4, pi/2, 0 |] :: Eulers
   let edot = [$vec| 0,0,0 |]
   let f = feedfilter 0.05 (repeat 
                       (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
@@ -161,6 +163,7 @@ statictest = do
   putStrLn "Set of angles derived from filtered quaternion"
   putStrLn $ show $ eulersOfQ q10th
 
+main = velocitytest
 
 velocitytest = do
   let einit = [$vec| pi/4, pi/2, 0 |] :: Eulers
@@ -171,9 +174,11 @@ velocitytest = do
 
   let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
   let f = feedfilter dt (meas walk) (fszero, rezero) 
-  
+  let fs = take 50 f
+  let ws = take 50 walk
+
  -- plotLists [] $ stateqs $ take 50 f
-  plotLists [] $ (stateangles $ take 50 f) ++ (angles $ take 50 walk)
+  plotLists [] $ stateangles fs ++ angles ws
 --  plotLists [] $ angles $ take 50 walk
 
 -- rosetta code provided a gaussian snippet, somewhat refactored here
