@@ -142,12 +142,14 @@ measurmentUpdate m s = FilterState { q = unitq $ up <> (q s)
                                          up = (i4 - k <> h)
 
 rateEstimateUpdate :: Measurment -> Time -> RateEstimate -> RateEstimate
-rateEstimateUpdate Measurment { source = Gyro
-                              , ref = r } adt re = RateEstimate { omega = (omega re) + constant k * residual
-                                                                , qke = (qke re)
-                                                                , dt = adt }
-                                                   where k = 0.8
-                                                         residual = r - (omega re)
+rateEstimateUpdate Measurment { source = Gyro, body = b } adt re = 
+  RateEstimate { omega = (omega re) + constant k * residual
+               , qke = (qke re)
+               , dt = adt }
+  where 
+    k = 0.8
+    residual = b - (omega re)
+
 rateEstimateUpdate _ _ re = re 
 
 rezero = RateEstimate { omega = [$vec|0,0,0|]
