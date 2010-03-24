@@ -93,6 +93,8 @@ ematOfEulers e = [$mat| sthe*spsi, cpsi, 0;
     cpsi = cos . psi   $ e
     spsi = sin . psi   $ e
 
+-- Measurment functions: generate a filter input from Euler angles
+
 toVecMeasurment :: MeasurmentSource -> RefVec -> Eulers -> Measurment
 toVecMeasurment s r e = 
   Measurment{ source = s
@@ -111,37 +113,41 @@ toGyroMeasurment e edot =
              , ref = [$vec|0,0,0|]
              , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
 
--- Constant walk: keeps a constant derivative, for now zero
-generateCWalk :: Eulers -> Time -> [Eulers]
-generateCWalk e dt = (e:es)
-                  where e' = advanceConst e ezero dt
-                        es = generateCWalk e' dt
+generateWalk :: Eulers -> [WorldAngularRate]-> Time -> [Eulers]
+generateWalk e (edot:edots) dt = (e:es)
+                  where e' = advanceConst e edot dt
+                        es = generateWalk e' edots dt
+generateWalk _ [] _ = []
 
+-- I believe that, since the world frame Eulers are independent variables,
+-- I can do a rectangular integration here without much fear.
 advanceConst :: Eulers -> WorldAngularRate -> Time -> Eulers
-advanceConst angle angledot dt = angle
+advanceConst angle angledot dt = angle + (angledot * constant dt)
 
-feedfilter :: [(Measurment, Measurment, Measurment)] -> (FilterState, RateEstimate) -> [(FilterState, RateEstimate)]
-feedfilter ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
+feedfilter :: Time -> [(Measurment, Measurment, Measurment)] -> (FilterState, RateEstimate) -> [(FilterState, RateEstimate)]
+feedfilter dt ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
   where 
     s'acc = measurmentUpdate ma state
     s'mag = measurmentUpdate mm s'acc
-    rate' = rateEstimateUpdate mg 0.02 rate
+    rate' = rateEstimateUpdate mg dt rate
     s'gyro = timePropogate rate' s'mag
-    states = feedfilter ms (s'gyro, rate')
+    states = feedfilter dt ms (s'gyro, rate')
 
-qaccs = [ q0, q1, q2, q3 ]
 statenorm = sumsq . q  
           where sumsq qq = (qq@>0)*(qq@>0) + (qq@>1)*(qq@>1) + (qq@>2)*(qq@>2) + (qq@>3)*(qq@>3)
 
--- The following two functions demonstrate my ignorance of Haskell:
+-- The following functions demonstrate my ignorance of Haskell:
+qaccs = [ q0, q1, q2, q3 ]
 stateqs fs = map (\qacc -> map (qacc . q . fst) fs) qaccs
 justqs  qs = map (\qacc -> map qacc qs) qaccs
+angleaccs = [phi, theta, psi]
+stateangles  as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) angleaccs 
+angles as = map (\angleacc -> map angleacc as) angleaccs
 
--------------------------------------------------------------
 statictest = do
   let e = [$vec| pi/4, pi/12, -pi/8 |] :: Eulers
   let edot = [$vec| 0,0,0 |]
-  let f = feedfilter (repeat 
+  let f = feedfilter 0.05 (repeat 
                       (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
                      (fszero, rezero)
   plotLists [] $ stateqs $ take 10 f
@@ -157,23 +163,25 @@ statictest = do
   putStrLn $ show $ eulersOfQ q10th
 
 
--------------------------------------------------------------
-{-
-consttest = do
-  let e = Eulers { alpha = Angle { a = 0, da = pi/4 }
-                 , beta  = Angle { a = pi/6, da = 0 }
-                 , gamma = Angle { a = pi/3, da = 0 } }
-  let walk = generateCWalk e 0.05 
-  let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e)) 
-  let f = feedfilter (meas walk) (fszero, rezero) 
-  plotLists [] $ stateqs $ take 50 f
+velocitytest = do
+  let einit = [$vec| pi/4, pi/12, -pi/8 |] :: Eulers
+  let edot = [$vec|pi/4, 0, 0|] :: WorldAngularRate
+  let edots = repeat edot 
+  let dt = 0.05 -- 20hz
+  let walk = generateWalk einit edots dt
+
+  let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
+  let f = feedfilter dt (meas walk) (fszero, rezero) 
   
-  plotLists [] $ anglelists ( take 10  f ) 
+  plotLists [] $ stateqs $ take 50 f
+  plotLists [] $ stateangles $ take 50 f 
+  --plotLists [] $ anglelists ( take 10  f ) 
+  
   --let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
   --let etuple = map ((\(_,b,c) -> (-1*c,-1*b)) . qtoEtuple . q . fst) f
   --plotPaths [] $ map (take 5) [walkpairs, etuple]
--}
---- rosetta code provided a gaussian snippet, somewhat refactored here
+
+-- rosetta code provided a gaussian snippet, somewhat refactored here
 -- weaves RandomGen in and out.
 gauss :: (RandomGen g) => Double -> g -> (Double, g)
 gauss sigma g = ( sigma * sqrt (-2 * log r1) * cos ( 2 * pi * r2 ) , g2 ) 
