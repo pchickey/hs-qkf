@@ -98,10 +98,9 @@ ematOfEulers e = [$mat| sthe*spsi, cpsi, 0;
 toVecMeasurment :: MeasurmentSource -> RefVec -> Eulers -> Measurment
 toVecMeasurment s r e = 
   Measurment{ source = s
-            , body = b
+            , body = (matOfEulers e) <> r
             , ref = r
             , meascov = liftMatrix (* constant 0.001) (atRows ident d3) }
-  where b = (matOfEulers e) <> r
 
 toAccMeasurment = toVecMeasurment Accelerometer [$vec|0,0,-1|] 
 toMagMeasurment = toVecMeasurment Magnetometer [$vec|1,0,0|] 
@@ -145,7 +144,7 @@ stateangles  as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) an
 angles as = map (\angleacc -> map angleacc as) angleaccs
 
 statictest = do
-  let e = [$vec| pi/4, pi/12, -pi/8 |] :: Eulers
+  let e = [$vec| pi/2, pi/2, 0 |] :: Eulers
   let edot = [$vec| 0,0,0 |]
   let f = feedfilter 0.05 (repeat 
                       (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
@@ -164,7 +163,7 @@ statictest = do
 
 
 velocitytest = do
-  let einit = [$vec| pi/4, pi/12, -pi/8 |] :: Eulers
+  let einit = [$vec| pi/4, pi/2, 0 |] :: Eulers
   let edot = [$vec|pi/4, 0, 0|] :: WorldAngularRate
   let edots = repeat edot 
   let dt = 0.05 -- 20hz
@@ -173,13 +172,9 @@ velocitytest = do
   let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
   let f = feedfilter dt (meas walk) (fszero, rezero) 
   
-  plotLists [] $ stateqs $ take 50 f
-  plotLists [] $ stateangles $ take 50 f 
-  --plotLists [] $ anglelists ( take 10  f ) 
-  
-  --let walkpairs = map (\e -> ( (a $ alpha e), (a $ beta e) )) walk
-  --let etuple = map ((\(_,b,c) -> (-1*c,-1*b)) . qtoEtuple . q . fst) f
-  --plotPaths [] $ map (take 5) [walkpairs, etuple]
+ -- plotLists [] $ stateqs $ take 50 f
+  plotLists [] $ (stateangles $ take 50 f) ++ (angles $ take 50 walk)
+--  plotLists [] $ angles $ take 50 walk
 
 -- rosetta code provided a gaussian snippet, somewhat refactored here
 -- weaves RandomGen in and out.
