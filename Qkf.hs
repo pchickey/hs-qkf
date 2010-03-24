@@ -154,9 +154,9 @@ rateEstimateUpdate _ _ re = re
 
 rezero = RateEstimate { omega = [$vec|0,0,0|]
                       , dt = 0.02
-                      , qke = liftMatrix (*constant 0.00001) (atRows ident d3) }
+                      , qke = liftMatrix (*constant 100) (atRows ident d3) }
 fszero = FilterState { q = [$vec|0,0,0,1|]
-                     , p = liftMatrix (*constant 0.01) (atRows ident d4) }
+                     , p = liftMatrix (*constant 0.5) (atRows ident d4) }
 
 
 
