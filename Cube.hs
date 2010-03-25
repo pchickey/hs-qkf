@@ -6,7 +6,7 @@
 -- Pat Hickey, 25 Mar 10
 
 module Cube (cubewith) where
-
+import Control.Concurrent
 import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
 import Qkf
@@ -98,4 +98,5 @@ reshape s@(Size w h) = do
 
 idle :: MVar (FilterState, RateEstimate) -> IO ()
 idle filtervar = do
-  putStrLn "idle called"
+  --putStrLn "idle called"
+  return ()
