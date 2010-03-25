@@ -98,5 +98,7 @@ reshape s@(Size w h) = do
 
 idle :: MVar (FilterState, RateEstimate) -> IO ()
 idle filtervar = do
-  --putStrLn "idle called"
+  (fs, re) <- readMVar filtervar
+  putStrLn $ show (q fs)
+  rotate 2 ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
   return ()
