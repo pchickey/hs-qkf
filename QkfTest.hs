@@ -3,8 +3,7 @@
 
 {-# LANGUAGE QuasiQuotes, NoMonomorphismRestriction, TypeOperators, FlexibleContexts 
     , ViewPatterns, ScopedTypeVariables #-}
-module QkfTest (..) where
-import Test.HUnit
+module QkfTest where
 import Control.Monad
 import Control.Concurrent
 import System.Random
