@@ -145,6 +145,11 @@ angleaccs = [phi, theta, psi]
 stateangles  as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) angleaccs 
 angles as = map (\angleacc -> map angleacc as) angleaccs
 
+meas :: [Eulers] -> [WorldAngularRate] -> [(Measurment, Measurment, Measurment)]
+meas es edots = map (\(e, edot) -> 
+                      (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot))
+                    $ zip es edots
+ 
 statictest = do
   let e = [$vec| pi/4, pi/2, 0 |] :: Eulers
   let edot = [$vec| 0,0,0 |]
@@ -167,18 +172,18 @@ main = velocitytest
 
 velocitytest = do
   let einit = [$vec| pi/4, pi/2, 0 |] :: Eulers
-  let edot = [$vec|pi/4, pi/12, 0|] :: WorldAngularRate
-  let edots = repeat edot 
+  let edot = [$vec|pi/4, -pi/12, 0|] :: WorldAngularRate
+  let edots = (replicate 25 edot) ++ repeat [$vec|0,0,0|]
   let dt = 0.05 -- 20hz
   let walk = generateWalk einit edots dt
-
-  let meas = map (\e -> (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
-  let f = feedfilter dt (meas walk) (fszero, rezero) 
+ 
+  let f = feedfilter dt (meas walk edots) (fszero, rezero) 
   let fs = take 50 f
   let ws = take 50 walk
 
  -- plotLists [] $ stateqs $ take 50 f
   plotLists [] $ stateangles fs ++ angles ws
+  plotLists [] $ stateqs fs ++ (justqs $ map qOfEulers ws)
 --  plotLists [] $ angles $ take 50 walk
 
 -- rosetta code provided a gaussian snippet, somewhat refactored here
