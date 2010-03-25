@@ -1,6 +1,3 @@
-import Graphics.Rendering.OpenGL
-import Graphics.UI.GLUT
-
 -- Credit where credit is due:
 -- I copied this code, more or less wholesale, from Mark J Kilgard.
 -- http://gist.github.com/309262
@@ -8,7 +5,13 @@ import Graphics.UI.GLUT
 -- Maybe one day I'll have the luxury of learning OpenGL properly, but not tonight!
 -- Pat Hickey, 25 Mar 10
 
-module Cube { cubewith } where
+module Cube (cubewith) where
+
+import Graphics.Rendering.OpenGL
+import Graphics.UI.GLUT
+import Qkf
+import QkfTest
+
 n :: [Normal3 GLfloat]
 n = [(Normal3 (-1.0) 0.0 0.0),
      (Normal3 0.0 1.0 0.0),
