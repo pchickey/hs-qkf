@@ -169,8 +169,6 @@ statictest = do
   putStrLn "Set of angles derived from filtered quaternion"
   putStrLn $ show $ eulersOfQ q10th
 
-main = velocitytest
-
 velocitytest = do
   let einit = [$vec| pi/4, pi/2, 0 |] :: Eulers
   let edot = [$vec|pi/4, -pi/12, 0|] :: WorldAngularRate
@@ -182,8 +180,8 @@ velocitytest = do
   let fs = take 50 f
   let ws = take 50 walk
 
-  plotLists [] $ stateangles fs ++ angles ws
-  plotLists [] $ stateqs fs ++ (justqs $ map qOfEulers ws)
+--  plotLists [] $ stateangles fs ++ angles ws
+--  plotLists [] $ stateqs fs ++ (justqs $ map qOfEulers ws)
   return f
 
 iotest :: IO [a] -> MVar a -> IO ()
