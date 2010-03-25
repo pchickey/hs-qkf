@@ -3,8 +3,10 @@
 
 {-# LANGUAGE QuasiQuotes, NoMonomorphismRestriction, TypeOperators, FlexibleContexts 
     , ViewPatterns, ScopedTypeVariables #-}
+module QkfTest (..) where
 import Test.HUnit
 import Control.Monad
+import Control.Concurrent
 import System.Random
 import Numeric.LinearAlgebra.Static
 import Graphics.Gnuplot.Simple
@@ -181,10 +183,15 @@ velocitytest = do
   let fs = take 50 f
   let ws = take 50 walk
 
- -- plotLists [] $ stateqs $ take 50 f
   plotLists [] $ stateangles fs ++ angles ws
   plotLists [] $ stateqs fs ++ (justqs $ map qOfEulers ws)
---  plotLists [] $ angles $ take 50 walk
+  return f
+
+iotest :: IO [a] -> MVar a -> IO ()
+iotest test var = do
+  fs <- test
+  mapM_ (\e -> do { takeMVar var; putMVar var e; threadDelay 50000 }) fs
+
 
 -- rosetta code provided a gaussian snippet, somewhat refactored here
 -- weaves RandomGen in and out.
