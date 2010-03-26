@@ -1,5 +1,5 @@
 -- Credit where credit is due:
--- I copied this code, more or less wholesale, from Mark J Kilgard.
+-- I copied the cube code, more or less wholesale, from Mark J Kilgard.
 -- http://gist.github.com/309262
 -- http://twoguysarguing.wordpress.com/2010/02/20/opengl-and-haskell/
 -- Maybe one day I'll have the luxury of learning OpenGL properly, but not tonight!
@@ -66,9 +66,20 @@ lightPosition = Vertex4 1.0 1.0 1.0 0.0
 
 initfn :: IO ()
 initfn = let light0 = Light 0 
+             light1 = Light 1
+             light2 = Light 2
          in do diffuse light0 $= lightDiffuse
                position light0 $= lightPosition
                light light0 $= Enabled
+               
+               diffuse light1 $= lightDiffuse
+               position light1 $= Vertex4 (-1.0) (-1.0) (-1.0) 0.0
+               light light1 $= Enabled
+
+               diffuse light2 $= lightDiffuse
+               position light2 $= Vertex4 1.0 (-1.0) (-1.0) 0.0
+               light light2 $= Enabled
+         
                lighting $= Enabled
 
                depthFunc $= Just Lequal
@@ -79,26 +90,32 @@ initfn = let light0 = Light 0
                lookAt (Vertex3 0.0 0.0 5.0) (Vertex3 0.0 0.0 0.0) (Vector3 0.0 1.0 0.0)
   
                translate ((Vector3 0.0 0.0 (-1.0))::Vector3 GLfloat)
-               rotate 60    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
-               rotate (-20) ((Vector3 0.0 0.0 1.0)::Vector3 GLfloat)
+           --    rotate 60    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
+           --    rotate (-20) ((Vector3 0.0 0.0 1.0)::Vector3 GLfloat)
 
 cubewith :: MVar (FilterState, RateEstimate) -> IO ()
-cubewith filtervar = do
+cubewith filterstate = do
   getArgsAndInitialize
   initialDisplayMode $= [DoubleBuffered, RGBMode, WithDepthBuffer]
   createWindow "red 3D lighted cube"
-  displayCallback $= display
+  displayCallback $= display 
   reshapeCallback $= Just reshape
-  idleCallback $= Just (idle filtervar)
+  
+  displaystate <- newEmptyMVar
+  putMVar displaystate qzero
+  
+  idleCallback $= Just (idle filterstate displaystate)
   initfn
   mainLoop
 
 reshape s@(Size w h) = do
   viewport $= (Position 0 0, s)
 
-idle :: MVar (FilterState, RateEstimate) -> IO ()
-idle filtervar = do
-  (fs, re) <- readMVar filtervar
-  putStrLn $ show (q fs)
-  rotate 2 ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
-  return ()
+idle :: MVar (FilterState, RateEstimate) -> MVar (Quat) -> IdleCallback
+idle filterstate displaystate = do
+  (fs, re) <- readMVar filterstate
+  
+  let qq = q fs
+
+  rotate 2 ((Vector3 (-1.0) (-1.0) (-1.0))::Vector3 GLfloat)
+  postRedisplay Nothing
