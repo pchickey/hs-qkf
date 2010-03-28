@@ -152,10 +152,11 @@ rateEstimateUpdate Measurment { source = Gyro, body = b } adt re =
 
 rateEstimateUpdate _ _ re = re 
 
+qzero = [$vec|0,0,0,1|] :: Quat
 rezero = RateEstimate { omega = [$vec|0,0,0|]
                       , dt = 0.02
                       , qke = liftMatrix (*constant 10) (atRows ident d3) }
-fszero = FilterState { q = [$vec|0,0,0,1|]
+fszero = FilterState { q = qzero
                      , p = liftMatrix (*constant 5) (atRows ident d4) }
 
 
