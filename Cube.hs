@@ -97,6 +97,7 @@ cubewith :: MVar (FilterState, RateEstimate) -> IO ()
 cubewith filterstate = do
   getArgsAndInitialize
   initialDisplayMode $= [DoubleBuffered, RGBMode, WithDepthBuffer]
+  actionOnWindowClose $= MainLoopReturns
   createWindow "red 3D lighted cube"
   displayCallback $= display 
   reshapeCallback $= Just reshape
