@@ -48,12 +48,8 @@ data Measurment =
             , ref     :: RefVec
             , meascov :: MeasurmentCovMat }  deriving( Show, Eq )
 
--- sample vectors for using in ghci
-qq :: Quat
-qq = [$vec| 0, 0, 0, 1|]
-
-ee :: Vector D3 Double
-ee = [$vec| 1, 3, 5 |]
+qzero :: Quat
+qzero = [$vec| 0, 0, 0, 1|]
 
 -- [ex]; Cross-product matrix of 3x1 column vector e, defined as
 crossProdMat :: (Element a) => Vector D3 a -> Matrix (D3,D3) a
@@ -82,10 +78,36 @@ attMatOfQ qq = liftMatrix (*constant  (q*q - e <.> e)) (ident `atRows` d3) +
                liftMatrix (*constant (2*q)) (crossProdMat e)
                where q = qre qq 
                      e = qvec qq
+-- mulQLeftMat is the matrix Q1 of q1 where Q1<>q2 = quaternion multiplication q1*q2
+mulQLeftMat :: Quat -> Matrix (D4, D4) Double
+mulQLeftMat qq = [$mat| w, -z,  y,  x;
+                        z,  w, -x,  y;
+                       -y,  x,  w,  z;
+                       -x, -y, -z,  w|]
+  where w = qq @> 3; x = qq @> 0; y = qq @> 1; z = qq @> 2
 
---negM :: (IntegerT (m :*: n)) => Matrix (m,n) Double -> Matrix (m,n) Double
---negM = liftMatrix (*constant (-1))
+-- quaternion multiplication
+mulqq :: Quat -> Quat -> Quat
+mulqq q1 q2 = (mulQLeftMat q1) <> q2
 
+-- inverse quaternion: negate the axis to reverse direction of rotation
+invq :: Quat -> Quat
+invq qq = [$vec| -x, -y, -z, w |]
+  where w = qq @> 3; x = qq @> 0; y = qq @> 1; z = qq @> 2
+{-
+angleaxisq :: Quat -> (Double, (Double, Double, Double))
+angleaxisq qq = if norm > 10e-10
+                  then (2.0 * acos w, (x / norm, y / norm,  z / norm))
+                  else (0, (1, 0, 0))
+  where w = qq @> 3; x = qq @> 0; y = qq @> 1; z = qq @> 2
+        norm = sqrt $ w*w + x*x + y*y + z*z
+-}
+rad2deg :: (Floating a) => a -> a
+rad2deg rads = rads * 180.0 / pi
+deg2rad :: (Floating a) => a -> a
+deg2rad degs = degs * pi / 180.0
+
+-- The vecQ functions are for rotating a three-space vector by a quaternion
 vecQRightMat :: Vector D3 Double -> Matrix (D4, D4) Double
 vecQRightMat b = ((negboX <|> bo) <-> (negbot <|> [$mat| 0 |]))
                  where negboX = liftMatrix (*constant (-1)) (crossProdMat b)
@@ -152,11 +174,13 @@ rateEstimateUpdate Measurment { source = Gyro, body = b } adt re =
 
 rateEstimateUpdate _ _ re = re 
 
-qzero = [$vec|0,0,0,1|] :: Quat
+-- rezero: initial state for rate estimate. 
 rezero = RateEstimate { omega = [$vec|0,0,0|]
                       , dt = 0.02
+                      -- qke is pretty high to keep filte stable. need to look into this
                       , qke = liftMatrix (*constant 10) (atRows ident d3) }
 fszero = FilterState { q = qzero
+                     -- p is large to account for random initial position
                      , p = liftMatrix (*constant 5) (atRows ident d4) }
 
 
