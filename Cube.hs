@@ -9,6 +9,7 @@ module Cube (cubewith) where
 import Control.Concurrent
 import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
+import Numeric.LinearAlgebra.Static -- for element access
 import Qkf
 import QkfTest
 
@@ -112,11 +113,34 @@ cubewith filterstate = do
 reshape s@(Size w h) = do
   viewport $= (Position 0 0, s)
 
+angleaxisq :: Quat -> (GLfloat, (GLfloat, GLfloat, GLfloat))
+angleaxisq qq = if norm > 1.0e-15
+                  then ( realToFrac $ 2.0 * acos limitedw 
+                       , (  realToFrac $ x / norm
+                         ,  realToFrac $ y / norm
+                         ,  realToFrac $ z / norm))
+                  else (0, (1, 0, 0))
+  where w = qq @> 3; x = qq @> 0; y = qq @> 1; z = qq @> 2
+        norm = sqrt $ x*x + y*y + z*z
+        limitedw = if w > 1.0 then -- Occasionally due to numeric errors w = 1.00...02
+                     1.0
+                   else
+                     w
+
+
+
 idle :: MVar (FilterState, RateEstimate) -> MVar (Quat) -> IdleCallback
 idle filterstate displaystate = do
   (fs, re) <- readMVar filterstate
-  
-  let qq = q fs
-
-  rotate 2 ((Vector3 (-1.0) (-1.0) (-1.0))::Vector3 GLfloat)
+  let qfilter = q fs
+  qdisplay <- takeMVar displaystate 
+ 
+  let qresidual = mulqq qfilter (invq qdisplay)
+  let (arad, (ax, ay, az)) = angleaxisq qresidual
+--  putStrLn $ "filterstate " ++ show qfilter
+--  putStrLn $ "displaystate " ++ show qdisplay
+  putStrLn $ "residual " ++ show qresidual
+  putStrLn $ "angle-axis " ++ show (rad2deg arad) ++ ", " ++ show ax ++ ", " ++ show ay ++ ", " ++ show az 
+  rotate (rad2deg arad) ((Vector3 ax ay az)::Vector3 GLfloat)
+  putMVar displaystate qfilter
   postRedisplay Nothing
