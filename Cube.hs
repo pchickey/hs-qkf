@@ -127,20 +127,24 @@ angleaxisq qq = if norm > 1.0e-15
                    else
                      w
 
-
-
 idle :: MVar (FilterState, RateEstimate) -> MVar (Quat) -> IdleCallback
 idle filterstate displaystate = do
   (fs, re) <- readMVar filterstate
   let qfilter = q fs
   qdisplay <- takeMVar displaystate 
- 
   let qresidual = mulqq qfilter (invq qdisplay)
-  let (arad, (ax, ay, az)) = angleaxisq qresidual
---  putStrLn $ "filterstate " ++ show qfilter
---  putStrLn $ "displaystate " ++ show qdisplay
-  putStrLn $ "residual " ++ show qresidual
-  putStrLn $ "angle-axis " ++ show (rad2deg arad) ++ ", " ++ show ax ++ ", " ++ show ay ++ ", " ++ show az 
-  rotate (rad2deg arad) ((Vector3 ax ay az)::Vector3 GLfloat)
-  putMVar displaystate qfilter
-  postRedisplay Nothing
+  
+  if qdisplay == qfilter then
+    do  
+      putMVar displaystate qdisplay
+      postRedisplay Nothing 
+    else 
+      do
+        let (arad, (ax, ay, az)) = angleaxisq qresidual
+  --    putStrLn $ "filterstate " ++ show qfilter
+  --    putStrLn $ "displaystate " ++ show qdisplay
+  --    putStrLn $ "residual " ++ show qresidual
+  --    putStrLn $ "angle-axis " ++ show (rad2deg arad) ++ ", " ++ show ax ++ ", " ++ show ay ++ ", " ++ show az 
+        rotate (rad2deg arad) ((Vector3 ax ay az)::Vector3 GLfloat)
+        putMVar displaystate qfilter
+        postRedisplay Nothing
