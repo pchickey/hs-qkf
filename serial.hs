@@ -104,5 +104,32 @@ newminmax ((minx, miny, minz),(maxx, maxy, maxz)) (RM _ x y z) = (mins', maxs')
     mins' = (min minx x, min miny y, min minz z)
     maxs' = (max maxx x, max maxy y, max maxz z)
 
+offset :: MeasurmentSource -> (Double, Double, Double)
+offset Accelerometer  = (0.0, 0.0, 0.0)
+offset Magnetometer   = (-55.0, 2.0, 28.0)
+offset Gyro           = (-351.0, 55.0, -257.0) 
 
+scalefactor :: MeasurmentSource -> (Double, Double, Double)
+scalefactor Accelerometer  = (1/540, 1/540, 1/540)
+scalefactor Magnetometer   = (1/250, 1/250, 1/250)
+scalefactor Gyro           = (gyroscale, gyroscale, gyroscale)
+  where gyroscale = (pi/180) / 16.3 -- 16.3 LSB per deg/sec
+
+data CalibratedMeasurment = CM MeasurmentSource Double Double Double deriving (Show,Eq)
+
+offsetandscale :: RawMeasurment -> CalibratedMeasurment
+offsetandscale (RM source x y z) = 
+  CM source (scax * (x - offx)) (scay * (y - offy)) (scaz * (z - offz)) 
+  where 
+    (offx, offy, offz) = offset source
+    (scax, scay, scaz) = scalefactor source
+
+displaycalibrated :: IO ()
+displaycalibrated = do
+  s <- serialBegin
+  forever $ do 
+    l <- getLineMaybe s
+    case parseLine l of
+      Just rm -> putStrLn . show $ offsetandscale rm 
+      _ -> return ()
 
