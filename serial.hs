@@ -74,19 +74,19 @@ vecOfCsv cs = let s = drop 3 cs
               in flatten h
 -}
 
-findminmax (mins, maxs) f = 
+loopminmax (mins, maxs) f = 
   f (mins, maxs)                                                        >>= \r ->
   let ((minacc, minmag),(maxacc, maxmag)) = r in
   putStrLn ("acc- min: " ++ show minacc ++ " max: " ++ show maxacc ++
     " -mag- min: " ++ show minmag ++ " max: " ++ show maxmag)           >> 
-  findminmax r f
+  loopminmax r f
 
-displaycalibration :: IO ()
-displaycalibration = do
+displayminsmaxs :: IO ()
+displayminsmaxs = do
   s <- serialBegin
   let initmins = ((1024,1024,1024),(1024,1024,1024))
   let initmaxs = ((-1024,-1024,-1024),(-1024,-1024,-1024))
-  findminmax (initmins, initmaxs) (minmaxlines s)
+  loopminmax (initmins, initmaxs) (minmaxlines s)
   
 minmaxlines s (mins, maxs) = do
   l <- getLineMaybe s
