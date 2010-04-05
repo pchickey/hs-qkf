@@ -131,8 +131,14 @@ displaycalibrated = do
     l <- getLineMaybe s
     forM_ (parseLine l) (print . offsetandscale)
 
-samplecalibrated scal = do
+samplecalibrated (acccal, magcal, gyrocal) = do
   s <- serialBegin
   forever $ do
     l <- getLineMaybe s
-    forM_ (parseLine l) (writeSampleVar scal)
+    forM_ (parseLine l) $
+      \parsed -> 
+        let calibrated = offsetandscale parsed in
+        case calibrated of 
+          CM Accelerometer _ _ _ ->  writeSampleVar  acccal calibrated
+          CM Magnetometer _ _ _  ->  writeSampleVar  magcal calibrated
+          CM Gyro _ _ _          ->  writeSampleVar gyrocal calibrated
