@@ -7,11 +7,15 @@ SUMMARY
 
 This program interfaces with an inertial sensor and estimates attitude using a quaternion Kalman filter based on Daniel Choukroun's "Novel Quaternion Kalman Filter" : http://ae-www.technion.ac.il/library/tae_view.php?id=5
 
-It is written in Haskell, mostly because I wanted to learn Haskell. I liked using the hmatrix-static library because it assures there aren't too many bugs at compile time. 
+It is written in Haskell, mostly because I wanted to learn Haskell. I like using the hmatrix-static library because it assures there aren't too many bugs at compile time. I like using the rest of Haskell, too. You should try it sometime.
 
-It interfaces with a 3-axis magnetometer, accellerometer, and rate gyro sensor over a serial port. Software and documentation on the sensor can be found at http://moreproductive.org/autopilot and http://github.com/pchickey/p4l-ahrs
+It interfaces with a 3-axis magnetometer, accellerometer, and rate gyro sensor over a serial port. Software and documentation on the sensor can be found at http://moreproductive.org/autopilot and http://github.com/pchickey/p4l-ahrs. In serial.hs, you'll find code which parses messages from the p4l-ahrs sensor, calibrates the raw readings against predefined constants, and prints calibrated readings to the screen ('displaycalibrated'). You'll also find a quick-n-dirty utility for sensor calibration, 'displayminmaxs', which I used to determine the minimum and maximum outputs of the sensor in controlled situations. 
 
-There is (or, will be) some code to rotate a cube on the screen to verify and demonstrate the filter.
+There is a simulation module for verifying the filter's performance with generated measurments, found in QkfTest.hs. Right now it only does pre-determined measurment sequences, two sample functions used are 'statictest', which simualtes a unit step at initialization, and 'velocitytest', which simulates a ramp at initialization, and levels off after 25 samples. The calls to 'plotLists' in these functions provides plots of the input and simulation response. 
+
+There is also support for OpenGL rendering of a cube given a quaternion, which can be found in Cube.hs. To animate the cube based on a simulation, QkfTest.hs includes a function iotest which posts filter output to an MVar, and Cube.hs reads this MVar to update the screen during the glut Idle callback.
+
+I'm extending the cube rendering to support real-time filtered sensor output. Stay tuned!
 
 DEPENDENCIES
 ------------
@@ -22,13 +26,10 @@ ghc 6.10
 hmatrix-static 0.3
 serialport 0.3.2
 gnuplot 0.3.3.1
-
-You may want to google for the hmatrix installation instructions to make sure you satisify library dependencies.
-
-The Display directory uses:
 opengl 2.4.0.1
 glut 2.2.2.0
-... but thats a mess of code I googled for at the moment. Hang tight.
+
+You may want to google for the hmatrix installation instructions to make sure you satisify library dependencies.
 
 LICENSE
 ----------
@@ -41,6 +42,5 @@ If you find this code useful, or if you think it sucks, I'd love to hear from yo
 Thank You to the folks on #haskell, particularily Cale.
 Thank You to ST Micro and Invensense for hardware donations. 
 
-I wrote this code so I could fly airplanes with it. 
-Particularily, this one : http://www.youtube.com/watch?v=DySuDdg4M1I
+I wrote this code so I could fly airplanes with it. Its first use will be in this one : http://www.youtube.com/watch?v=DySuDdg4M1I
 See my Paparazzi for Linux project for more info : http://moreproductive.org/autopilot/
