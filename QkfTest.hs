@@ -147,9 +147,9 @@ stateangles  as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) an
 angles as = map (\angleacc -> map angleacc as) angleaccs
 
 meas :: [Eulers] -> [WorldAngularRate] -> [(Measurment, Measurment, Measurment)]
-meas es edots = map (\(e, edot) -> 
+meas es edots = zipWith (\e edot -> 
                       (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot))
-                    $ zip es edots
+                    es edots
  
 statictest = do
   let e = [$vec| pi/4, pi/2, 0 |] :: Eulers
