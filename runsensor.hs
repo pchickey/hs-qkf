@@ -15,7 +15,10 @@ main = do
 
   fvar <- newEmptyMVar
   putMVar fvar (fszero, rezero) 
+  forkIO $ forever $ filterSamples (acccal, magcal, gyrocal) fvar
+  
   forkIO $ cubewith fvar
+
 
 filterSamples (acccal, magcal, gyrocal) fvar = 
  let dt = 0.03 in
@@ -24,11 +27,17 @@ filterSamples (acccal, magcal, gyrocal) fvar =
   latestmag <- readSampleVar magcal
   latestgyro <- readSampleVar gyrocal
   (fstate, rstate) <- takeMVar fvar
-  let s'acc = measurmentUpdate latestacc fstate
-  let s'mag = measurmentUpdate latestmag s'acc
-  let rstate' = rateEstimateUpdate latestgyro dt rstate
-  let s'gyro = timePropogate rstate' s'mag
-  putMVar fvar (fstate, rstate)
+  let acc = toMeasurment latestacc
+  let mag = toMeasurment latestmag
+  let gyro = toMeasurment latestgyro  
+  let fs'acc = measurmentUpdate acc fstate
+  let fs'mag = measurmentUpdate mag fs'acc
+  let rstate' = rateEstimateUpdate (toMeasurment latestgyro) dt rstate
+  let fs'gyro = timePropogate rstate' fs'mag
+  print fs'gyro
+  print rstate'
+  putMVar fvar (fs'gyro, rstate')
+  threadDelay 50
 
 toMeasurment :: CalibratedMeasurment -> Measurment
 toMeasurment (CM Accelerometer x y z) =
@@ -43,6 +52,11 @@ toMeasurment (CM Magnetometer x y z) =
     , body = [$vec| x, y, z |]
     , ref = [$vec| 1, 0, 0|]
     , meascov = defaultcov }
-
+toMeasurment (CM Gyro x y z) = 
+  Measurment
+  { source = Gyro
+  , body = [$vec| x, y, z |]
+  , ref = [$vec| 0, 0, 0 |]
+  , meascov = defaultcov }
 
 
