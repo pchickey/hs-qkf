@@ -131,7 +131,7 @@ displaycalibrated = do
     l <- getLineMaybe s
     forM_ (parseLine l) (print . offsetandscale)
 
-samplecalibrated (acccal, magcal, gyrocal) = do
+sampleCalibrated (acccal, magcal, gyrocal) = do
   s <- serialBegin
   forever $ do
     l <- getLineMaybe s
