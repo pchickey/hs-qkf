@@ -4,7 +4,8 @@
     , ViewPatterns, ScopedTypeVariables, PatternGuards #-}
 module SerialQKF where
 import System.Hardware.Serialport
-import Control.Monad
+import Control.Monad hiding (forM, forM_)
+import Data.Foldable -- has instance Foldable Maybe, so we can forM across Maybes
 import Control.Monad.Loops
 import Control.Concurrent
 import Numeric.LinearAlgebra.Static
@@ -111,7 +112,7 @@ offset Gyro           = (-1056.0, 403.0, 783.0)
 
 scalefactor :: MeasurmentSource -> (Double, Double, Double)
 scalefactor Accelerometer  = ((-1)/540, (-1)/540, (-1)/540) -- Datasheet lied about sign?
-scalefactor Magnetometer   = (1/250, 1/250, 1/250)
+scalefactor Magnetometer   = (1/250, (-1)/250, 1/250) -- Should align it with gyro right-handed coord system if datasheet was correct
 scalefactor Gyro           = (gyroscale, gyroscale, gyroscale)
   where gyroscale =(pi/180) / 16.3 -- 16.3 LSB per deg/sec
 
@@ -123,11 +124,10 @@ offsetandscale (RM source x y z) =
   where 
     (offx, offy, offz) = offset source
     (scax, scay, scaz) = scalefactor source
+
 displaycalibrated = do
   s <- serialBegin
-  forever $ do 
+  forever $ do
     l <- getLineMaybe s
-    case parseLine l of
-      Just rm -> putStrLn . show $ offsetandscale rm 
-      _ -> return ()
-
+    forM_ (parseLine l) (print . offsetandscale)
+    
