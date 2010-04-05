@@ -130,4 +130,9 @@ displaycalibrated = do
   forever $ do
     l <- getLineMaybe s
     forM_ (parseLine l) (print . offsetandscale)
-    
+
+samplecalibrated scal = do
+  s <- serialBegin
+  forever $ do
+    l <- getLineMaybe s
+    forM_ (parseLine l) (writeSampleVar scal)
