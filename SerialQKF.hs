@@ -142,3 +142,4 @@ sampleCalibrated (acccal, magcal, gyrocal) = do
           CM Accelerometer _ _ _ ->  writeSampleVar  acccal calibrated
           CM Magnetometer _ _ _  ->  writeSampleVar  magcal calibrated
           CM Gyro _ _ _          ->  writeSampleVar gyrocal calibrated
+    threadDelay 50
