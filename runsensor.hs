@@ -17,9 +17,9 @@ main = do
   gyrocal  <- newEmptySampleVar
   filtered <- newEmptySampleVar
   
-  forkIO $ sampleCalibrated (acccal, magcal, gyrocal)
-  forkIO $ loopAndSend filtered (filterSamples (acccal, magcal, gyrocal)) (fszero, rezero)
-  forkIO $ cubewith filtered
+  t1 <- forkIO $ sampleCalibrated (acccal, magcal, gyrocal)
+  t2 <- forkIO $ loopAndSend filtered (filterSamples (acccal, magcal, gyrocal)) (fszero, rezero)
+  forkIO $ cubewith filtered >> killThread t1 >> killThread t2
 
 loopAndSend :: SampleVar a -> (a -> IO a) -> a -> IO ()
 loopAndSend svar f init =
