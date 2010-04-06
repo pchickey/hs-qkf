@@ -94,7 +94,7 @@ initfn = let light0 = Light 0
            --    rotate 60    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
            --    rotate (-20) ((Vector3 0.0 0.0 1.0)::Vector3 GLfloat)
 
-cubewith :: MVar (FilterState, RateEstimate) -> IO ()
+cubewith :: SampleVar (FilterState, RateEstimate) -> IO ()
 cubewith filterstate = do
   getArgsAndInitialize
   initialDisplayMode $= [DoubleBuffered, RGBMode, WithDepthBuffer]
@@ -127,24 +127,18 @@ angleaxisq qq = if norm > 1.0e-15
                    else
                      w
 
-idle :: MVar (FilterState, RateEstimate) -> MVar (Quat) -> IdleCallback
+idle :: SampleVar (FilterState, RateEstimate) -> MVar (Quat) -> IdleCallback
 idle filterstate displaystate = do
-  (fs, re) <- readMVar filterstate
+  (fs, re) <- readSampleVar filterstate
   let qfilter = q fs
   qdisplay <- takeMVar displaystate 
   let qresidual = mulqq qfilter (invq qdisplay)
   
-  if qdisplay == qfilter then
-    do  
-      putMVar displaystate qdisplay
-      postRedisplay Nothing 
-    else 
-      do
-        let (arad, (ax, ay, az)) = angleaxisq qresidual
+  let (arad, (ax, ay, az)) = angleaxisq qresidual
   --    putStrLn $ "filterstate " ++ show qfilter
   --    putStrLn $ "displaystate " ++ show qdisplay
   --    putStrLn $ "residual " ++ show qresidual
   --    putStrLn $ "angle-axis " ++ show (rad2deg arad) ++ ", " ++ show ax ++ ", " ++ show ay ++ ", " ++ show az 
-        rotate (rad2deg arad) ((Vector3 ax ay az)::Vector3 GLfloat)
-        putMVar displaystate qfilter
-        postRedisplay Nothing
+  rotate (rad2deg arad) ((Vector3 ax ay az)::Vector3 GLfloat)
+  putMVar displaystate qfilter
+  postRedisplay Nothing
