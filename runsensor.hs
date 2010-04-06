@@ -3,6 +3,7 @@
 import Numeric.LinearAlgebra.Static
 import Control.Concurrent
 import Qkf
+import QkfTest
 import Cube
 import SerialQKF
 
@@ -36,35 +37,63 @@ filterSamples (acccal, magcal, gyrocal) (fstate, rstate) =
   latestacc <- readSampleVar acccal
   latestmag <- readSampleVar magcal
   latestgyro <- readSampleVar gyrocal
-  let acc = toMeasurment latestacc
-  let mag = toMeasurment latestmag
-  let gyro = toMeasurment latestgyro  
+  let acc = accMeasurment latestacc
+  let mag = magMeasurment latestmag latestacc
+  let gyro = gyroMeasurment latestgyro  
   let fs'acc = measurmentUpdate acc fstate
   let fs'mag = measurmentUpdate mag fs'acc
-  let rstate' = rateEstimateUpdate (toMeasurment latestgyro) dt rstate
+  let rstate' = rateEstimateUpdate gyro dt rstate
   let fs'gyro = timePropogate rstate' fs'mag
-  print fs'gyro
-  print rstate'
+  
+--  print $ body acc
+--  print $ body mag
+--  print $ ref mag
+
+  print $ eulersOfQ $ q fs'gyro
+
+  --print rstate'
+  --putStrLn $ "before gyro " ++ (show $ eulersOfQ $ q fs'mag)
+  --putStrLn $ "after gyro  " ++ (show $ eulersOfQ $ q fs'gyro)
   return (fs'gyro, rstate')
 
-toMeasurment :: CalibratedMeasurment -> Measurment
-toMeasurment (CM Accelerometer x y z) =
+accMeasurment (CM Accelerometer x y z) =
   Measurment
     { source = Accelerometer 
     , body = [$vec| x, y, z |]
     , ref = [$vec| 0, 0, -1|]
-    , meascov = defaultcov }
-toMeasurment (CM Magnetometer x y z) =
+    , meascov = magacccov }
+
+-- Quick and dirty way to deal with magnetic declination:
+-- make the reference vector at the same angle to down reference as the
+-- magnetic measurment is to the accelleration measurment.
+-- this is probably a really bad idea when there are accellerations,
+-- so in the future add a low pass filter or track it in the filter 
+magMeasurment (CM Magnetometer mx my mz) (CM Accelerometer ax ay az) =
   Measurment
     { source = Magnetometer 
-    , body = [$vec| x, y, z |]
-    , ref = [$vec| 1, 0, 0|]
-    , meascov = defaultcov }
-toMeasurment (CM Gyro x y z) = 
+    , body = magunit
+    , ref = [$vec| refnorth, 0, refdown|]
+    , meascov = magacccov }
+  where
+    accv = [$vec| ax, ay, az |]
+    magv = [$vec| mx, my, mz |]
+    accunit = accv / constant (fnorm accv) 
+    magunit = magv / constant (fnorm magv) 
+    declination = acos $ accunit <.> magunit
+    refnorth = sin declination
+    refdown = (-1) * cos declination
+
+gyroMeasurment (CM Gyro x y z) = 
   Measurment
   { source = Gyro
-  , body = [$vec| x, y, z |]
+  , body = [$vec| 0, 0, 0 |]
+  --, body = [$vec| x, y, z |]
   , ref = [$vec| 0, 0, 0 |]
   , meascov = defaultcov }
 
+                      
+magacccov :: MeasurmentCovMat
+magacccov = [$mat|0.001, 0, 0;
+                   0, 0.001, 0;
+                   0, 0, 0.001|]
 
