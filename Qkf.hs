@@ -169,7 +169,7 @@ rateEstimateUpdate Measurment { source = Gyro, body = b } adt re =
                , qke = (qke re)
                , dt = adt }
   where 
-    k = 0.8
+    k = 0.3
     residual = b - (omega re)
 
 rateEstimateUpdate _ _ re = re 
@@ -183,5 +183,5 @@ fszero = FilterState { q = qzero
                      -- p is large to account for random initial position
                      , p = liftMatrix (*constant 5) (atRows ident d4) }
 
-
+fnorm x = pnorm PNorm2 x
 
