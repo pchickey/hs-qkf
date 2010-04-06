@@ -8,6 +8,7 @@
 module Cube (cubewith) where
 import Control.Concurrent
 import Graphics.Rendering.OpenGL
+import Graphics.Rendering.OpenGL.GL.CoordTrans
 import Graphics.UI.GLUT
 import Numeric.LinearAlgebra.Static -- for element access
 import Qkf
@@ -89,9 +90,9 @@ initfn = let light0 = Light 0
                perspective 40.0 1.0 1.0 10.0
                matrixMode $= Modelview 0
                lookAt (Vertex3 0.0 0.0 5.0) (Vertex3 0.0 0.0 0.0) (Vector3 0.0 1.0 0.0)
-  
                translate ((Vector3 0.0 0.0 (-1.0))::Vector3 GLfloat)
-           --    rotate 60    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
+          
+          --    rotate 60    ((Vector3 1.0 0.0 0.0)::Vector3 GLfloat)
            --    rotate (-20) ((Vector3 0.0 0.0 1.0)::Vector3 GLfloat)
 
 cubewith :: SampleVar (FilterState, RateEstimate) -> IO ()
@@ -126,19 +127,35 @@ angleaxisq qq = if norm > 1.0e-15
                      1.0
                    else
                      w
+mmofQ :: Quat -> IO (GLmatrix GLfloat)
+mmofQ qq = 
+  newMatrix RowMajor $ map realToFrac 
+     [ a11, a12, a13, 0
+     , a21, a22, a23, 0
+     , a31, a32, a33, 0
+     , 0  , 0  , 0  , 1 ]
+  where
+    a = qq @> 3 ; b = qq @> 0 ; c = qq @> 1 ; d = qq @> 2
+    a11 = a*a + b*b - c*c - d*d
+    a12 = 2*b*c - 2*a*d
+    a13 = 2*b*d + 2*a*c
+    a21 = 2*b*c + 2*a*d
+    a22 = a*a - b*b + c*c - d*d
+    a23 = 2*c*d - 2*a*b
+    a31 = 2*b*d - 2*a*c
+    a32 = 2*c*d + 2*a*b
+    a33 = a*a - b*b - c*c + d*d
 
 idle :: SampleVar (FilterState, RateEstimate) -> MVar (Quat) -> IdleCallback
 idle filterstate displaystate = do
   (fs, re) <- readSampleVar filterstate
   let qfilter = q fs
-  qdisplay <- takeMVar displaystate 
-  let qresidual = mulqq qfilter (invq qdisplay)
+--  qdisplay <- takeMVar displaystate 
   
-  let (arad, (ax, ay, az)) = angleaxisq qresidual
-  --    putStrLn $ "filterstate " ++ show qfilter
-  --    putStrLn $ "displaystate " ++ show qdisplay
-  --    putStrLn $ "residual " ++ show qresidual
+  let (arad, (ax, ay, az)) = angleaxisq qfilter
   --    putStrLn $ "angle-axis " ++ show (rad2deg arad) ++ ", " ++ show ax ++ ", " ++ show ay ++ ", " ++ show az 
-  rotate (rad2deg arad) ((Vector3 ax ay az)::Vector3 GLfloat)
-  putMVar displaystate qfilter
+  loadIdentity
+  translate ((Vector3 0.0 0.0 (-5))::Vector3 GLfloat)
+  mmofQ qfilter >>= multMatrix
+--  putMVar displaystate qfilter
   postRedisplay Nothing
