@@ -23,8 +23,8 @@ main = do
 
   t1 <- forkIO $ sampleCalibrated (acccal, magcal, gyrocal)
   t2 <- forkIO $ loopAndSend filtered (filterSamples (acccal, magcal, gyrocal)) (fszero, rezero) reslog
-  t3 <- forkIO $ cubewith filtered >> killThread t1 >> killThread t2
-  
+  forkIO $ cubewith filtered >> killThread t1 >> killThread t2
+  --cubewith filtered >> killThread t1 >> killThread t2
   plotresults reslog
 
 unzip3vec :: [Vector D3 Double] -> ([Double],[Double],[Double])
@@ -46,22 +46,19 @@ unzip4vec [] = ([], [], [], [])
 
 plotresults rchan = do
   rs <- getChanContents rchan 
-  let (outs, ins) = unzip $ take 300 rs
+  let (outs, ins) = unzip $ take 150 rs
   let (fstates, restates) = unzip outs
   let (accs, mags, gyros) = unzip3 ins
   let (axs, ays, azs) = unzip3vec (map body accs)
   let (mxs, mys, mzs) = unzip3vec (map body mags)
   let (gxs, gys, gzs) = unzip3vec (map body gyros)
   let (qxs, qys, qzs, qws) = unzip4vec (map q fstates)
-  let (ephis, ethetas, epsis) = unzip3vec (map (aircraftEulersOfQ . q) fstates)
-  --plotLists [Title "Quaternion Components"] [qxs, qys, qzs, qws]
-  plotLists [Title "Euler Angles, radians"] [ephis, ethetas, epsis]
+  let (ephis, ethetas, epsis) = unzip3vec (map (eulers321OfQ . q) fstates)
   plotLists [Title "Accelerometer"] $ [axs, ays, azs]
   plotLists [Title "Magnetometer"] [mxs, mys, mzs]
-  plotList  [Title "Angle between Acc and Mag"] $
-    zipWith (\a m -> acos $ a <.> m) (map body accs) (map body mags)
+  --plotLists [Title "Gyros"] [gxs, gys, gzs]
+  plotLists [Title "Euler Angles, radians"] [ephis, ethetas, epsis]
 
--- loopAndSend :: SampleVar b -> (a -> IO a) -> a -> Chan a -> IO ()
 loopAndSend svar f init logchan =
   let loop x = 
         f x >>= \result ->
@@ -86,15 +83,7 @@ filterSamples (acccal, magcal, gyrocal) (fstate, rstate) =
   let rstate' = rateEstimateUpdate gyro dt rstate
   let fs'gyro = timePropogate rstate' fs'mag
   
---  print $ body acc
---  print $ body mag
---  print $ ref mag
-
-  -- print $ eulersOfQ $ q fs'gyro
-
-  --print rstate'
-  --putStrLn $ "before gyro " ++ (show $ eulersOfQ $ q fs'mag)
-  --putStrLn $ "after gyro  " ++ (show $ eulersOfQ $ q fs'gyro)
+  print fs'gyro
   return ((fs'gyro, rstate'), (acc, mag, gyro))
 
 accMeasurment (CM Accelerometer x y z) =
@@ -127,8 +116,7 @@ magMeasurment (CM Magnetometer mx my mz) (CM Accelerometer ax ay az) =
 gyroMeasurment (CM Gyro x y z) = 
   Measurment
   { source = Gyro
-  , body = [$vec| 0, 0, 0 |]
-  --, body = [$vec| x, y, z |]
+  , body = [$vec| x, y, z |]
   , ref = [$vec| 0, 0, 0 |]
   , meascov = defaultcov }
 
