@@ -150,12 +150,8 @@ idle :: SampleVar (FilterState, RateEstimate) -> MVar (Quat) -> IdleCallback
 idle filterstate displaystate = do
   (fs, re) <- readSampleVar filterstate
   let qfilter = q fs
---  qdisplay <- takeMVar displaystate 
-  
   let (arad, (ax, ay, az)) = angleaxisq qfilter
-  --    putStrLn $ "angle-axis " ++ show (rad2deg arad) ++ ", " ++ show ax ++ ", " ++ show ay ++ ", " ++ show az 
   loadIdentity
   translate ((Vector3 0.0 0.0 (-5))::Vector3 GLfloat)
-  mmofQ qfilter >>= multMatrix
---  putMVar displaystate qfilter
+  mmofQ (invq qfilter) >>= multMatrix
   postRedisplay Nothing
