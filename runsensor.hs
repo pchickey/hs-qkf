@@ -6,6 +6,7 @@ import Qkf
 import QkfTest
 import Cube
 import SerialQKF
+import Graphics.Gnuplot.Simple
 
 type CalSampleVar = SampleVar CalibratedMeasurment
 type ThreeCals = (CalSampleVar, CalSampleVar, CalSampleVar)
@@ -19,7 +20,10 @@ main = do
   
   t1 <- forkIO $ sampleCalibrated (acccal, magcal, gyrocal)
   t2 <- forkIO $ loopAndSend filtered (filterSamples (acccal, magcal, gyrocal)) (fszero, rezero)
-  forkIO $ cubewith filtered >> killThread t1 >> killThread t2
+  forkIO $ cubewith filtered >>= \results -> killThread t1 >> killThread t2 >> 
+  plotresults results
+
+plotresults r =
 
 loopAndSend :: SampleVar a -> (a -> IO a) -> a -> IO ()
 loopAndSend svar f init =
