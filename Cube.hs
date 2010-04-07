@@ -56,7 +56,7 @@ drawBox = let nfaces = zip n faces
 display :: DisplayCallback
 display = do
   clear [ColorBuffer, DepthBuffer]
-  putStrLn "DisplayCallback Called"
+--  putStrLn "DisplayCallback Called"
   drawBox
   swapBuffers
 
