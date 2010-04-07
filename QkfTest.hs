@@ -80,12 +80,18 @@ eulersOfQ q =
   where qq0 = q0 q; qq1 = q1 q; qq2 = q2 q; qq3 = q3 q
 
 -- in (1,2,3) sequence: Deibel (73)
-aircraftEulersOfQ q = 
+eulers123OfQ q = 
   [$vec| atan2 (2*qq2*qq3 + 2*qq0*qq1) (qq3*qq3 - qq2*qq2 - qq1*qq1 + qq0*qq0)
        , (-1)*asin (2*qq1*qq3 - 2*qq0*qq2)
        , atan2 (2*qq1*qq2 + 2*qq0*qq3) (qq1*qq1 + qq0*qq0 - qq3*qq3 - qq2*qq2) |]
   where qq0 = q0 q; qq1 = q1 q; qq2 = q2 q; qq3 = q3 q
 
+-- in (3,2,1) sequence: Deibel 
+eulers321OfQ q = 
+  [$vec| atan2 ((-2)*qq1*qq2 + 2*qq0*qq3) (qq1*qq1 + qq0*qq0 - qq3*qq3 - qq2*qq2)
+       , asin (2*qq1*qq3 + 2*qq0*qq2)
+       , atan2 ((-2)*qq2*qq3 + 2*qq0*qq1) (qq3*qq3 - qq2*qq2 - qq1*qq1 + qq0*qq0) |]
+  where qq0 = q0 q; qq1 = q1 q; qq2 = q2 q; qq3 = q3 q
 
 -- Euler Angle Rate Matrix
 -- omega = E(u) * udot  where omega is body fixed angular rates, u is euler angles
