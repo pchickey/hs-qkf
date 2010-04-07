@@ -26,8 +26,8 @@ main = do
   t3 <- forkIO $ cubewith filtered >> killThread t1 >> killThread t2
   
   plotresults reslog
-  print "done plotting results"
 
+unzip3vec :: [Vector D3 Double] -> ([Double],[Double],[Double])
 unzip3vec (v:vs) = (v1:v1s , v2:v2s, v3:v3s)
   where v1 = v @> 0
         v2 = v @> 1
@@ -35,19 +35,31 @@ unzip3vec (v:vs) = (v1:v1s , v2:v2s, v3:v3s)
         (v1s, v2s, v3s) = unzip3vec vs
 unzip3vec [] = ([], [], [])
 
+unzip4vec :: [Vector D4 Double] -> ([Double],[Double],[Double],[Double])
+unzip4vec (v:vs) = (v1:v1s , v2:v2s, v3:v3s, v4:v4s)
+  where v1 = v @> 0
+        v2 = v @> 1
+        v3 = v @> 2
+        v4 = v @> 3
+        (v1s, v2s, v3s, v4s) = unzip4vec vs
+unzip4vec [] = ([], [], [], [])
+
 plotresults rchan = do
-  print "getting chan contents"
   rs <- getChanContents rchan 
-  let (outs, ins) = unzip $ take 100 rs
+  let (outs, ins) = unzip $ take 300 rs
   let (fstates, restates) = unzip outs
   let (accs, mags, gyros) = unzip3 ins
   let (axs, ays, azs) = unzip3vec (map body accs)
   let (mxs, mys, mzs) = unzip3vec (map body mags)
   let (gxs, gys, gzs) = unzip3vec (map body gyros)
-  print "beginning plots"
+  let (qxs, qys, qzs, qws) = unzip4vec (map q fstates)
+  let (ephis, ethetas, epsis) = unzip3vec (map (aircraftEulersOfQ . q) fstates)
+  --plotLists [Title "Quaternion Components"] [qxs, qys, qzs, qws]
+  plotLists [Title "Euler Angles, radians"] [ephis, ethetas, epsis]
   plotLists [Title "Accelerometer"] $ [axs, ays, azs]
   plotLists [Title "Magnetometer"] [mxs, mys, mzs]
-
+  plotList  [Title "Angle between Acc and Mag"] $
+    zipWith (\a m -> acos $ a <.> m) (map body accs) (map body mags)
 
 -- loopAndSend :: SampleVar b -> (a -> IO a) -> a -> Chan a -> IO ()
 loopAndSend svar f init logchan =
@@ -78,7 +90,7 @@ filterSamples (acccal, magcal, gyrocal) (fstate, rstate) =
 --  print $ body mag
 --  print $ ref mag
 
-  print $ eulersOfQ $ q fs'gyro
+  -- print $ eulersOfQ $ q fs'gyro
 
   --print rstate'
   --putStrLn $ "before gyro " ++ (show $ eulersOfQ $ q fs'mag)
