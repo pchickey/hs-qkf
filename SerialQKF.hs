@@ -111,7 +111,7 @@ offset Magnetometer   = (-55.0, 2.0, 28.0)
 offset Gyro           = (-1056.0, 403.0, 783.0) 
 
 scalefactor :: MeasurmentSource -> (Double, Double, Double)
-scalefactor Accelerometer  = ((-1)/540, (-1)/540, (-1)/540) -- Datasheet lied about sign?
+scalefactor Accelerometer  = ((-1)/540, 1/540, (-1)/540) -- Datasheet lied about sign?
 scalefactor Magnetometer   = (1/250, (-1)/250, 1/250) -- Should align it with gyro right-handed coord system if datasheet was correct
 scalefactor Gyro           = (gyroscale, gyroscale, gyroscale)
   where gyroscale =(pi/180) / 16.3 -- 16.3 LSB per deg/sec
