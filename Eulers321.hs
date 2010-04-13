@@ -43,10 +43,12 @@ matOfEulers eulers =
 -- to fit type Quat convention.
 qOfEulers :: Eulers -> Quat
 qOfEulers eulers =
-  [$vec| cphi * cpsi * sthe + sphi * cthe * spsi,
-         cphi * cthe * spsi - sphi * cpsi * sthe,
-         cphi * sthe * spsi + sthe * cpsi * sphi,
-         cphi * cthe * cpsi - sphi * cthe * spsi|]
+  [$vec| 
+         cphi * cthe * spsi + sphi * cpsi * sthe,
+         cphi * cpsi * sthe - sphi * cthe * spsi,
+         cphi * sthe * spsi + cthe * cpsi * sphi,
+         cphi * cthe * cpsi - sphi * sthe * spsi
+         |]
   where
   cphi = cos . (/2) . phi   $ eulers
   sphi = sin . (/2) . phi   $ eulers
@@ -55,7 +57,7 @@ qOfEulers eulers =
   cpsi = cos . (/2) . psi   $ eulers
   spsi = sin . (/2) . psi   $ eulers
 
--- Deibel (451)
+-- Deibel (452)
 eulersOfQ :: Quat -> Eulers
 eulersOfQ q =
   [$vec| atan2 ((-2)*qq1*qq2 + 2*qq0*qq3) (qq1*qq1 + qq0*qq0 - qq3*qq3 - qq2*qq2)
@@ -67,7 +69,7 @@ eulersOfQ q =
 -- omega = E(u) * udot  where omega is body fixed angular rates, u is euler angles
 -- Deibel (453)
 type Emat = Matrix (D3,D3) Double
--- Deibel (56)
+-- Deibel (453)
 ematOfEulers :: Eulers -> Emat
 ematOfEulers e = [$mat| sthe      , 0    , 1
                       ;-spsi*cthe , cpsi , 0
