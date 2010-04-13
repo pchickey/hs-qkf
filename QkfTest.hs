@@ -194,14 +194,14 @@ velocitytest = do
   let fs = take 50 f
   let ws = take 50 walk
 
---  plotLists [] $ stateangles fs ++ angles ws
---  plotLists [] $ stateqs fs ++ (justqs $ map qOfEulers ws)
+  plotLists [] $ stateangles fs ++ angles ws
+  plotLists [] $ stateqs fs ++ (justqs $ map qOfEulers ws)
   return f
 
-iotest :: IO [a] -> MVar a -> IO ()
-iotest test var = do
-  fs <- test
-  mapM_ (\e -> do { takeMVar var; putMVar var e; threadDelay 50000 }) fs
+iotest :: [a] -> SampleVar a -> IO ()
+iotest fs var = 
+  forM_ fs (\e -> writeSampleVar var e >>
+                  threadDelay 50000 )
 
 
 -- rosetta code provided a gaussian snippet, somewhat refactored here
