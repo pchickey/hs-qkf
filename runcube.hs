@@ -6,7 +6,7 @@ import Cube
 
 
 main = do
-  fvar <- newEmptyMVar
-  putMVar fvar (fszero, rezero) 
+  fvar <- newEmptySampleVar
   forkIO (cubewith fvar)
-  forkIO (iotest velocitytest fvar)
+  testresults <- velocitytest
+  forkIO (iotest testresults fvar)
