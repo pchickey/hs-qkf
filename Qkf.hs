@@ -5,11 +5,11 @@
 module Qkf where
 -- 9 out of 10 computer scientists recommend hmatrix-static
 import Numeric.LinearAlgebra.Static
+import Quaternion
 
 -- for deltaT and so on
 type Time = Double
 -- vec first {i j k}, then re
-type Quat = Vector D4 Double
 type QuatCovMat = Matrix (D4, D4) Double
 -- Defined in paper, but we don't use it?
 type AttitudeMat = Matrix (D3, D3) Double
