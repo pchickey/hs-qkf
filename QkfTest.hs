@@ -149,6 +149,16 @@ feedfilter dt ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
     s'gyro = timePropogate rate' s'mag
     states = feedfilter dt ms (s'gyro, rate')
 
+feedfilter' :: Time -> [(Measurment, Measurment, Measurment)] -> (FilterState, RateEstimate) -> [(FilterState, RateEstimate)]
+feedfilter' dt ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
+  where 
+    s'acc = measurmentUpdate ma state
+    s'mag = measurmentUpdate mm s'acc
+    rate' = rateEstimateUpdate mg dt rate
+    s'gyro = timePropogate' rate' s'mag
+    states = feedfilter dt ms (s'gyro, rate')
+
+
 statenorm = sumsq . q  
           where sumsq qq = (qq@>0)*(qq@>0) + (qq@>1)*(qq@>1) + (qq@>2)*(qq@>2) + (qq@>3)*(qq@>3)
 
@@ -157,7 +167,7 @@ qaccs = [ q0, q1, q2, q3 ]
 stateqs fs = map (\qacc -> map (qacc . q . fst) fs) qaccs
 justqs  qs = map (\qacc -> map qacc qs) qaccs
 angleaccs = [phi, theta, psi]
-stateangles  as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) angleaccs 
+stateangles as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) angleaccs 
 angles as = map (\angleacc -> map angleacc as) angleaccs
 
 meas :: [Eulers] -> [WorldAngularRate] -> [(Measurment, Measurment, Measurment)]
@@ -190,13 +200,13 @@ velocitytest = do
   let dt = 0.05 -- 20hz
   let walk = generateWalk einit edots dt
  
-  let f = feedfilter dt (meas walk edots) (fszero, rezero) 
+  let f = feedfilter' dt (meas walk edots) (fszero, rezero) 
   let fs = take 50 f
   let ws = take 50 walk
 
-  plotLists [] $ stateangles fs ++ angles ws
-  plotLists [] $ stateqs fs ++ (justqs $ map qOfEulers ws)
-  return f
+  plotLists [Title "Euler Angles"] $ stateangles fs ++ angles ws
+  plotLists [Title "Quat Components"] $ stateqs fs ++ (justqs $ map qOfEulers ws)
+--  return f
 
 iotest :: [a] -> SampleVar a -> IO ()
 iotest fs var = 
