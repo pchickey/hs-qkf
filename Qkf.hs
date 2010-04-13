@@ -139,6 +139,15 @@ transitionMatOf w dt = expm omegadt
                        where omega = vecQRightMat w
                              omegadt = liftMatrix (* constant dt) omega
 
+transitionQuatOf :: AngularRate -> Time -> Quat
+transitionQuatOf w dt = [$vec| qx, qy, qz, qre |]
+  where
+  wx = w @> 0; wy = w @> 1; wz = w @> 2
+  qx = sin $ wx * dt
+  qy = sin $ wy * dt
+  qz = sin $ wz * dt
+  qre = 1 - (qx*qx + qy*qy + qz*qz)
+
 timePropogate :: RateEstimate -> FilterState -> FilterState
 timePropogate r s = FilterState { q = unitq $ phi <> (q s)
                                 , p = phi <> (p s) <> (trans phi) + qkq }
@@ -146,6 +155,16 @@ timePropogate r s = FilterState { q = unitq $ phi <> (q s)
                                       zeta = zetaMatOf (q s)
                                       zetat = ((dt r)/2)^2
                                       qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))
+
+timePropogate' r s = 
+  FilterState { q = mulqq qomega (q s)
+              , p = phi <> (p s) <> (trans phi) + qkq }
+  where 
+  qomega = transitionQuatOf (omega r) (dt r)
+  phi = transitionMatOf (omega r) (dt r)
+  zeta = zetaMatOf (q s)
+  zetat = (^2) . (/2) . dt $ r
+  qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))  
 
 measurmentUpdate :: Measurment -> FilterState -> FilterState
 measurmentUpdate m s = FilterState { q = unitq $ up <> (q s)
