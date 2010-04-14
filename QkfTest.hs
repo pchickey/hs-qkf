@@ -11,24 +11,10 @@ import Numeric.LinearAlgebra.Static
 import Graphics.Gnuplot.Simple
 -- Project Modules:
 import Quaternion
-import Eulers313
+import Eulers321
 import Qkf
--- in (1,2,3) sequence: Deibel (73)
-eulers123OfQ q = 
-  [$vec| atan2 (2*qq2*qq3 + 2*qq0*qq1) (qq3*qq3 - qq2*qq2 - qq1*qq1 + qq0*qq0)
-       , (-1)*asin (2*qq1*qq3 - 2*qq0*qq2)
-       , atan2 (2*qq1*qq2 + 2*qq0*qq3) (qq1*qq1 + qq0*qq0 - qq3*qq3 - qq2*qq2) |]
-  where qq0 = q0 q; qq1 = q1 q; qq2 = q2 q; qq3 = q3 q
-
--- in (3,2,1) sequence: Deibel 
-eulers321OfQ q = 
-  [$vec| atan2 ((-2)*qq1*qq2 + 2*qq0*qq3) (qq1*qq1 + qq0*qq0 - qq3*qq3 - qq2*qq2)
-       , asin (2*qq1*qq3 + 2*qq0*qq2)
-       , atan2 ((-2)*qq2*qq3 + 2*qq0*qq1) (qq3*qq3 - qq2*qq2 - qq1*qq1 + qq0*qq0) |]
-  where qq0 = q0 q; qq1 = q1 q; qq2 = q2 q; qq3 = q3 q
 
 -- Measurment functions: generate a filter input from Euler angles
-
 toVecMeasurment :: MeasurmentSource -> RefVec -> Eulers -> Measurment
 toVecMeasurment s r e = 
   Measurment{ source = s
@@ -90,18 +76,29 @@ stateangles as = map (\angleacc -> map (angleacc . eulersOfQ . q  . fst) as) ang
 angles as = map (\angleacc -> map angleacc as) angleaccs
 
 meas :: [Eulers] -> [WorldAngularRate] -> [(Measurment, Measurment, Measurment)]
-meas es edots = zipWith (\e edot -> 
-                      (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot))
-                    es edots
- 
+meas = 
+  zipWith (\e edot -> 
+    ( toAccMeasurment e
+    , toMagMeasurment e
+    , toGyroMeasurment e edot))
+
+measGyroZero :: [Eulers] -> [WorldAngularRate] -> [(Measurment, Measurment, Measurment)]
+measGyroZero = 
+  zipWith (\e edot ->
+    ( toAccMeasurment e
+    , toMagMeasurment e
+    ,  Measurment { source = Gyro
+                  , body = [$vec|0,0,0|]
+                  , ref = [$vec|0,0,0|]
+                  , meascov = liftMatrix (* constant 0.01) (atRows ident d3) }))
+
 statictest = do
-  let e = [$vec| pi/4, pi/2, 0 |] :: Eulers
+  let e = [$vec| pi/4, pi/3, 0 |] :: Eulers
   let edot = [$vec| 0,0,0 |]
   let f = feedfilter 0.05 (repeat 
                       (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
                      (fszero, rezero)
-  plotLists [] $ stateqs $ take 10 f
-  plotLists [] $ justqs $ take 10 $ repeat $ qOfEulers e
+  plotLists [] $ (stateqs $ take 10 f) ++ (justqs $ take 10 $ repeat $ qOfEulers e)
   let q10th =  q . fst . last . take 10 $ f
   putStrLn "Filtered quaternion after 10 iterations:"
   putStrLn $ show q10th
@@ -115,11 +112,11 @@ statictest = do
 velocitytest = do
   let einit = [$vec| pi/4, pi/2, 0 |] :: Eulers
   let edot = [$vec|pi/4, -pi/12, 0|] :: WorldAngularRate
-  let edots = (replicate 25 edot) ++ repeat [$vec|0,0,0|]
+  let edots = (replicate 10 [$vec|0,0,0|]) ++ (replicate 25 edot) ++ repeat [$vec|0,0,0|]
   let dt = 0.05 -- 20hz
   let walk = generateWalk einit edots dt
  
-  let f = feedfilter' dt (meas walk edots) (fszero, rezero) 
+  let f = feedfilter' dt (measGyroZero walk edots) (fszero, rezero) 
   let fs = take 50 f
   let ws = take 50 walk
 
@@ -132,6 +129,8 @@ iotest fs var =
   forM_ fs (\e -> writeSampleVar var e >>
                   threadDelay 50000 )
 
+-- ghci shorthand
+vt = velocitytest
 
 -- rosetta code provided a gaussian snippet, somewhat refactored here
 -- weaves RandomGen in and out.
