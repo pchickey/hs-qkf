@@ -110,8 +110,8 @@ statictest = do
   putStrLn $ show $ eulersOfQ q10th
 
 velocitytest = do
-  let einit = [$vec| pi/4, pi/2, 0 |] :: Eulers
-  let edot = [$vec|pi/4, -pi/12, 0|] :: WorldAngularRate
+  let einit = [$vec| pi/4, pi/3, 0 |] :: Eulers
+  let edot = [$vec|pi/3, -pi/12, 0|] :: WorldAngularRate
   let edots = (replicate 10 [$vec|0,0,0|]) ++ (replicate 25 edot) ++ repeat [$vec|0,0,0|]
   let dt = 0.05 -- 20hz
   let walk = generateWalk einit edots dt
