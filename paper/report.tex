@@ -1,5 +1,6 @@
 \documentclass[12pt]{report}
 \usepackage[pdftex]{graphicx}
+\usepackage{url}
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
 % correct bad hyphenation here
 \hyphenation{op-tical net-works semi-conduc-tor auto-nomous}
@@ -21,8 +22,22 @@ I will discuss the selection and construction of the sensor hardware, design and
 
 
 \section{Problem Description}
-Problem Statement
+
+I needed to build sensor hardware and software that would determine the angular orientation and angular rotation rate of the sensor relative to the earth frame, ie. North, East, and Down. I selected sensor integrated circuits (ICs) which determine, on three axes, body accelleration, body rotation rate, and relative magnetic field. These three sensors (accellerometer, rate gyro, and magnetometer) provide a total of nine measurments. 
+
+An algorithm is required to convert these nine measurments into an expression of angular orientation and angular rate (the derivative, with respect to time, of angular orientation). Angular orientation of a body has three degrees of freedom, as does angular rate. The conversion from measurment space to estimate space (a pair of angular orientation estimate and angular rate estimate) is nonlinear and uses a four-dimensional vector called a quaternion to describe the three-dimensional angular orientation. This is to say, a big part of the problem is ensuring the correctness of this difficult conversion process.   
+
+I selected a well-known algorithm which implements a Quaternion Kalman Filter. This provides an state estimate using the four-dimensional quaternion vector, and an additional three-dimensional rotational rate vector. I needed to implement that software so that I could test it for correctness and use it to determine the orientation of an actual sensor. This software was to be used in an actual model aircraft autopilot system, so it must meet requirments for reliability and soft real-time performance.
+
 \subsection{Application}
+
+As part of my role on the Rutgers Autonomous Aircraft Team, I've been working on a model aircraft autopilot system based on a single board computer which runs Linux \footnote{For more information on this project, see \url{http://moreproductive.org/autopilot/}}. I implemented the control, navigation, and telemetry software in C using standard Linux system calls and threads. I used dedicated hardware for real-time tasks, for example, a microcontroller-based servo controller connected via USB ensures proper servo control despite irregular communication intervals from the computer. 
+By using helper threads for input and output, we can be reasonably sure the main control loop will run at close to 60Hz. This is considered ``soft'' real-time.
+
+The sensor software needs to cooperate with the soft real-time main control loop. 
+
+
+
 aircraft autopilot
 - in particular, paparazzi for linux
 - soft real-time
