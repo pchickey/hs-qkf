@@ -42,6 +42,9 @@ The sensor software needs to cooperate with the soft real-time main control loop
 The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source implementations of very similar software is available. So, in order to make this work in some way novel, I decided to write the filter software using Haskell. Haskell is a purely functional language with a powerful type system, and is not typically used for soft real-time applications.
 
 \section{Theoretical Basis}
+
+The theoretical basis for this paper has been primarily drawn from -- cite dchoukrouns paper. I hope this section provides a clear explanation of how that theory applies to this project.
+
 \subsection{Measurment Vectors}
 Because the sensors are fixed to the frame (\emph{body}) we're estimating the orientation, accellerometer and magnetometer provide us with vector measurments in the body frame. We denote body frame vectors with $b_x$. The expecte vector of that measurment in the global frame is $g_x$. For example, the expected global frame accelleration $g_a = \begin{bmatrix} 0 & 0 & -1\end{bmatrix} $ in units normalized to $1g$ ($9.81m/s^2$)
 
@@ -84,7 +87,7 @@ The measured magnetic field $z_m$ will be the sum of three vectors: the natural 
 \begin{equation} \label{eq:zm}
   z_m = b_m + m_s + \delta_m
 \end{equation}
-In this filter we consider the magnetic field of the body $m_s$ to be constant\footnote{Be cautious about this assumption when the sensor is installed near devices which emit an electromagnetic field, including DC motors and switching power supplies.}. We will estimate $m_s$ for the particular body the sensor is installed in. Measurment noise $\delta_m$ will be considered a zero-mean gaussian random vector with covariance matrix
+In this filter we assume the magnetic field of the body $m_s$ to be constant\footnote{N.b. components which emit a changing electromagnetic field, such as DC motors and switching power supplies, will cause trouble.}. We will estimate $m_s$ for the particular body the sensor is installed in. Measurment noise $\delta_m$ will be considered a zero-mean gaussian random vector with covariance matrix
 \begin{equation} \label{eq:Qm}
   Q_m = \begin{pmatrix} \sigma_m^2 & 0 & 0 \\
 	                      0 & \sigma_m^2 & 0 \\ 
@@ -93,11 +96,27 @@ In this filter we consider the magnetic field of the body $m_s$ to be constant\f
 
 We will estimate $\sigma_m$ from a long sequence of samples taken with the filter hardware at rest.
 
-The earth's magnetic field $g_m$ may be estimated in the body frame
+The earth's magnetic field, in the global frame ($g_m$), will point towards magnetic north when projected onto a horizontal plane. (talk about magnetic field strength, magnetic declination angle here)
+
 
 \subsubsection{Rate Gyro Measurment}
 
-A rate gyro measures the rotation rate of a body about a single axis. We use three orthogonal rate gyros to measure a rotational  
+A rate gyro measures the rotation rate of a body about a single axis. We use three orthogonal rate gyros to estimate the rotational rate of the body, considered as a vector
+\begin{equation} \label{eq:omega}
+	\omega = \begin{bmatrix} \omega_x & \omega_y & \omega_z \end{bmatrix}
+\end{equation}
+The measurment $z_\omega$ can be considered as
+\begin{equation} \label{eq:zomega}
+	z_\omega = \omega + \Delta_\omega + \delta_\omega
+\end{equation}
+where rate gyro zero offset $\Delta_\omega$ is the constant vector output when the sensor body is at rest,
+and measurment noise $\delta_\omega$ is a zero-mean gaussian random vector with covariance matrix
+\begin{equation} \label{eq:Qomega}
+	Q_\omega = \begin{pmatrix} \sigma_\omega^2 & 0 & 0 \\
+	                      0 & \sigma_\omega^2 & 0 \\ 
+	                      0 & 0 & \sigma_\omega^2 \end{pmatrix} 
+\end{equation}
+In reality, zero offset $\Delta_\omega$ may drift with time and change in temperature. Compensation for this gyro drift is outside the scope of this paper, but has been solved in --cite dchokrouns better paper.
 
 \subsection{Quaternion Representation}
 
