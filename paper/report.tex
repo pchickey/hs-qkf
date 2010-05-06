@@ -34,19 +34,10 @@ I selected a well-known algorithm which implements a Quaternion Kalman Filter. T
 As part of my role on the Rutgers Autonomous Aircraft Team, I've been working on a model aircraft autopilot system based on a single board computer which runs Linux \footnote{For more information on this project, see \url{http://moreproductive.org/autopilot/}}. I implemented the control, navigation, and telemetry software in C using standard Linux system calls and threads. I used dedicated hardware for real-time tasks, for example, a microcontroller-based servo controller connected via USB ensures proper servo control despite irregular communication intervals from the computer. 
 By using helper threads for input and output, we can be reasonably sure the main control loop will run at close to 60Hz. This is considered ``soft'' real-time.
 
-The sensor software needs to cooperate with the soft real-time main control loop. 
+The sensor software needs to cooperate with the soft real-time main control loop. In order to stabilize an inherently stable fixed-wing aircraft, we need to update the main control loop's orientation estimate at at least 30Hz, preferably at 60Hz. So the sensor hardware must provide new measurments at a rate exceeding 30Hz, a complete measurment every 3.3ms. The sensor filtration software must complete computation in much less than a measurment period as not to dominate the CPU. Lets consider a target time of 500us per computation.
 
-
-
-aircraft autopilot
-- in particular, paparazzi for linux
-- soft real-time
-- threads, c, linux
 \subsection{Use of Haskell}
-It is well established how to implement such a filter in C
-
-I approached using a functional language as an experiment
-
+The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source code implementing very similar software is available. So, in order to make this work in some way novel, I decided to write the filter software using Haskell. Haskell is a purely functional language with a powerful type system, and is not typically used for soft real-time applications.
 \section{Hardware}
 \subsection{Sensors}
 needed 3 axis magnetometer, accellerometer, rate gyro
@@ -72,7 +63,7 @@ blocking serial calls
 -- Provide timing information?
 
 \section{Filtration Software}
-The filtration software was implemented in Haskell. The code may be found on Github at http://github.com/pchickey/hs-qkf/
+The filtration software was implemented in Haskell. The code may be found on Github at \url{http://github.com/pchickey/hs-qkf/}
 \subsection{Algorithm Selection}
 find an algorithm which assumes my measurment sources
 \subsection{Algorithm Overview}
