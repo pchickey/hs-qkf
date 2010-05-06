@@ -43,32 +43,61 @@ The sensor software I describe in this paper is typically implemented in a low l
 
 \section{Theoretical Basis}
 \subsection{Measurment Vectors}
+Because the sensors are fixed to the frame (\emph{body}) we're estimating the orientation, accellerometer and magnetometer provide us with vector measurments in the body frame. We denote body frame vectors with $b_x$. The expecte vector of that measurment in the global frame is $g_x$. For example, the expected global frame accelleration $g_a = \begin{bmatrix} 0 & 0 & -1\end{bmatrix} $ in units normalized to $1g$ ($9.81m/s^2$)
+
+By comparing a body frame vector to the global frame vector, we can find a rotation which transforms the global frame into the body frame. We call this the orientation estimate.  
+
 \subsubsection{Accellerometer Measurment}
 
-An accellerometer measures force exerted by a small test mass against a beam connected to the sensor body. 
-
--- Figure here, of a small mass mt on a beam 
-
-The current generation of MEMS accellerometers uses etched silicon to build the test mass and beam structure, and measures the capicatance between the test mass and sensor body to determine the beam deflection.Since an accellerometer can only measure deflection, and therefore accelleration, in one direction, we use three separate sensors oriented to measure accelleration along three orthogonal axes. These three separate measured accellerations ($a_x, a_y, a_z$) can be considered as a three dimensional vector $A = \begin{bmatrix}a_x&a_y&a_z \end{bmatrix}$
-
-According to Newton's second law, $F = m a$ , the force on a body will be directly proportional to the accelleration of the body. When we consider a small test mass $m_t$ on a beam, and the system is at rest, the mass will exert a force $F_g = m_t g_b$, where $g$ is the accelleration due to gravity in the body frame. A body accelleration ab will exert a force $F_a = m_t a_b$. The sensor measures the sum of these two forces, so for any $F = F_g + F_a = m_t ( g_b + a_b )$. Because $m_t$ is constant, we can consider the calibrated measurment 
-\begin{equation} 
-  A_m = \frac{F}{m_t} = g_b + a_b
-\end{equation} 
- 
-In this application we're interesting in estimating $g_b$ in order to find the vector, in the body frame, which points straight down in the world frame. On a body such as an aircraft, where accellerations may come from any direction at any time, we consider $a_b$ to be a random vector with a covariance matrix 
-\begin{equation} Q_a = \begin{pmatrix} \sigma_a^2 & 0 & 0 \\
-				                               0 & \sigma_a^2 & 0 \\ 
-					                             0 & 0 & \sigma_a^2 \end{pmatrix} 
+An accellerometer measures force exerted by a small test mass against a beam connected to the sensor body. The current generation of MEMS accellerometers uses etched silicon to build the test mass and beam structure, and measures the capicatance between the test mass and sensor body to determine the beam deflection. Since an accellerometer can only measure deflection, and therefore accelleration, in one direction, we use three separate sensors oriented to measure accelleration along three orthogonal axes. These three separate measured accellerations ($a_x, a_y, a_z$) can be considered as a three dimensional vector 
+\begin{equation} \label{eq:defa}
+  a = \begin{bmatrix}a_x&a_y&a_z \end{bmatrix}
 \end{equation}
 
-We typically estimate a value for $\sigma_a$ to be between 2 and 4$g$ for airborne applications.
+According to Newton's second law, $F = m a$ , the force on a body will be directly proportional to the accelleration of the body. When we consider a small test mass $m_t$ on a beam, and the system is at rest, the mass will exert a force $F_g = m_t g_b$, where $g$ is the accelleration due to gravity in the body frame. A body accelleration ab will exert a force $F_a = m_t a_b$. The sensor measures the sum of these two forces, so for any $F = F_g + F_a = m_t ( g_b + a_b )$. Because $m_t$ is constant, we can define the scaled measurment $a$ as 
+\begin{equation} \label{eq:defza}
+  a = \frac{F}{m_t} = g_b + a_b
+\end{equation} 
+ 
+In this application we're interesting in estimating $b_a$ in order to find the vector, in the body frame, which points straight down in the world frame. We include a measurment noise vector $\delta_a$, and find measurment $z_b$ as
+\begin{equation} \label{eq:findgb}
+  z_a = b_a + a_b + \delta_a
+\end{equation}
 
+On a body such as an aircraft, where accellerations $a_b$ may come from any direction at any time, we consider $a_b$ to be a zero-mean gaussian random vector with a covariance matrix 
+\begin{equation} \label{eq:Qa}
+  Q_a = \begin{pmatrix} \sigma_a^2 & 0 & 0 \\
+	                      0 & \sigma_a^2 & 0 \\ 
+	                      0 & 0 & \sigma_a^2 \end{pmatrix} 
+\end{equation}
 
+Covariance matrix $Q_a$ will be used in the measurment model of the Kalman Filter. We typically estimate a value for $\sigma_a$ to be between 2$g$ and 4$g$ for airborne applications. Since $\delta_a$ will be zero-mean and have a small variance compared to $a_b$ we can neglect it.
 
 \subsubsection{Magnetometer Measurment}
 
-A magnetometer measures 
+A magnetometer measures the magnitude magnetic field in one direction. I refer the interested reader to ... for a physical explanation of magnetometer sensors. The three separate measured magnetic field magnitudes ($m_x, m_y, m_z$) are considered as a three dimensional vector
+\begin{equation} \label{eq:defb}
+  m = \begin{bmatrix} m_x & m_y & m_z \end{bmatrix}
+\end{equation}
+
+The measured magnetic field $z_m$ will be the sum of three vectors: the natural magnetic field of the earth in the body frame $b_m$, the magnetic field of the body $m_s$, and measurment noise $\delta_m$.
+\begin{equation} \label{eq:zm}
+  z_m = b_m + m_s + \delta_m
+\end{equation}
+In this filter we consider the magnetic field of the body $m_s$ to be constant\footnote{Be cautious about this assumption when the sensor is installed near devices which emit an electromagnetic field, including DC motors and switching power supplies.}. We will estimate $m_s$ for the particular body the sensor is installed in. Measurment noise $\delta_m$ will be considered a zero-mean gaussian random vector with covariance matrix
+\begin{equation} \label{eq:Qm}
+  Q_m = \begin{pmatrix} \sigma_m^2 & 0 & 0 \\
+	                      0 & \sigma_m^2 & 0 \\ 
+	                      0 & 0 & \sigma_m^2 \end{pmatrix} 
+\end{equation}
+
+We will estimate $\sigma_m$ from a long sequence of samples taken with the filter hardware at rest.
+
+The earth's magnetic field $g_m$ may be estimated in the body frame
+
+\subsubsection{Rate Gyro Measurment}
+
+A rate gyro measures the rotation rate of a body about a single axis. We use three orthogonal rate gyros to measure a rotational  
 
 \subsection{Quaternion Representation}
 
