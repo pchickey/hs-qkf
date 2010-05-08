@@ -116,9 +116,19 @@ and measurment noise $\delta_\omega$ is a zero-mean gaussian random vector with 
 	                      0 & \sigma_\omega^2 & 0 \\ 
 	                      0 & 0 & \sigma_\omega^2 \end{pmatrix} 
 \end{equation}
+
 In reality, zero offset $\Delta_\omega$ may drift with time and change in temperature. Compensation for this gyro drift is outside the scope of this paper, but has been solved in --cite dchokrouns better paper.
 
 \subsection{Quaternion Representation}
+
+There are a wide variety of resources which formally describe quaternions and their use in describing spatial rotations. I will give an overview of the most useful properties which will be used in this work.
+
+A quaternion is a complex number with three imaginary components, $i,j,k$, which are defined such that $i^2 = j^2 = k^2 = ijk = -1$. Quaternions span a four-dimensional real-numbered space where a quaternion $a + b i + c j + d k$ can be considered as a vector $\begin{bmatrix}a & b & c & d \end{bmatrix}$. 
+
+Quaternion multiplication is a noncommutative operation: $q_1 q_2$ is not equal to $q_2 q_1$ for all quaternions $q_1, q_2$. This property is useful because spatial rotation is a noncommutative operation as well.
+
+The set of unit quaternions
+
 
 \subsection{Algorithm Overview}
 
