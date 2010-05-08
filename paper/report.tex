@@ -39,7 +39,9 @@ The sensor software needs to cooperate with the soft real-time main control loop
 
 \subsection{Use of Haskell}
 
-The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source implementations of very similar software is available. So, in order to make this work in some way novel, I decided to write the filter software using Haskell. Haskell is a purely functional language with a powerful type system, and is not typically used for soft real-time applications.
+The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source implementations of functionally similar software is available. 
+
+I decided to write the filter software using Haskell. Haskell is a purely functional language with a powerful type system, and is not typically used for soft real-time applications. However, I believe Haskell is well suited for writing algorithms because it can express mathematical concepts elegantly, and often transparently. It is often possible to reason about Haskell code in the exact same way as mathematics. This results in code which is code more readable and more easily modified. 
 
 \section{Theoretical Basis}
 
@@ -87,7 +89,7 @@ The measured magnetic field $z_m$ will be the sum of three vectors: the natural 
 \begin{equation} \label{eq:zm}
   z_m = b_m + m_s + \delta_m
 \end{equation}
-In this filter we assume the magnetic field of the body $m_s$ to be constant\footnote{N.b. components which emit a changing electromagnetic field, such as DC motors and switching power supplies, will cause trouble.}. We will estimate $m_s$ for the particular body the sensor is installed in. Measurment noise $\delta_m$ will be considered a zero-mean gaussian random vector with covariance matrix
+In this filter we assume the magnetic field of the body $m_s$ to be constant\footnote{Electrical and mechanical components which emit a changing electromagnetic field, such as DC motors and switching power supplies, will cause trouble.}. We will estimate $m_s$ for the particular body the sensor is installed in. Measurment noise $\delta_m$ will be considered a zero-mean gaussian random vector with covariance matrix
 \begin{equation} \label{eq:Qm}
   Q_m = \begin{pmatrix} \sigma_m^2 & 0 & 0 \\
 	                      0 & \sigma_m^2 & 0 \\ 
@@ -127,8 +129,14 @@ A quaternion is a complex number with three imaginary components, $i,j,k$, which
 
 Quaternion multiplication is a noncommutative operation: $q_1 q_2$ is not equal to $q_2 q_1$ for all quaternions $q_1, q_2$. This property is useful because spatial rotation is a noncommutative operation as well.
 
-The set of unit quaternions
+The set of unit quaternions, all $q$ where $ ||q|| = 1$, are used to represent spatial rotations. For every unit quaternion $q$ 
+there exists a unit vector $\mathbf{v} = \begin{bmatrix} v_x & v_y & v_z \end{bmatrix}, ||v|| = 1$ 
+and an angle $\theta \in [-\pi, \pi]$ where 
+$q = \begin{bmatrix} \cos (\theta/2) & v_x \sin (\theta/2) & v_y \sin (\theta/2) & v_z \sin (\theta/2)\end{bmatrix}$. The quaternion formed in this represents a spatial rotation about axis $\mathbf{v}$ of angle $\theta$. We can also see that $q$ and $-q$ represent the same spatial rotation. 
 
+The inverse quaternion $q^{-1} = a - bi - cj - dk$ of a unit quaternion $q$ represents the inverse rotation $q$. We can visualize this as the same angle of rotation $\theta$ about an inverted axis $\mathbf{v}$.
+
+I refer the reader to --citations for more detailed information.
 
 \subsection{Algorithm Overview}
 
