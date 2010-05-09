@@ -7,7 +7,7 @@ SUMMARY
 
 This program interfaces with an inertial sensor and estimates attitude using a quaternion Kalman filter based on Daniel Choukroun's "Novel Quaternion Kalman Filter" : http://ae-www.technion.ac.il/library/tae_view.php?id=5
 
-It is written in Haskell, mostly because I wanted to learn Haskell. I like using the hmatrix-static library because it assures there aren't too many bugs at compile time. I like using the rest of Haskell, too. You should try it sometime. It isn't really perfect for this project, though, if we're going to use it for soft real-time application. In my demos there are visible stutters which I suspect may be due to the garbage collector. I need to investigate this further.
+It is written in Haskell, mostly because I wanted to learn Haskell. I like using the hmatrix-static library because it assures there aren't too many bugs at compile time. I like using the rest of Haskell, too. It isn't perfect for this project because garbage collection might interfere with soft real-time - I need to investigate this further.
 
 It interfaces with a 3-axis magnetometer, accellerometer, and rate gyro sensor over a serial port. Software and documentation on the sensor can be found at http://moreproductive.org/autopilot and http://github.com/pchickey/p4l-ahrs. In serial.hs, you'll find code which parses messages from the p4l-ahrs sensor, calibrates the raw readings against predefined constants, and prints calibrated readings to the screen ('displaycalibrated'). You'll also find a quick-n-dirty utility for sensor calibration, 'displayminmaxs', which I used to determine the minimum and maximum outputs of the sensor in controlled situations. 
 
@@ -16,6 +16,8 @@ There is a simulation module for verifying the filter's performance with generat
 There is also support for OpenGL rendering of a cube given a quaternion, which can be found in Cube.hs. To animate the cube based on a simulation, QkfTest.hs includes a function iotest which posts filter output to an SampleVar, and Cube.hs reads this SampleVar to update the screen during the glut Idle callback. The 'runcube.hs' program moves the cube according to a simulation 'iotest' from QkfTest.hs, but it is currently broken as I've changed some of the cube interfaces.
 
 There is a cube and gnuplot based sensor test program called 'runsensor.hs'. 'plotresults' reads a Chan stream and has some utility functions for plotting the inputs andoutputs. 'loopAndSend' communicates with the cube module. There is a link to the demo video below.
+
+In the paper/ directory, you'll find the LaTeX source of my report on this project. I'll post a PDF once its done.
 
 DEPENDENCIES
 ------------
@@ -34,11 +36,12 @@ You may want to google for the hmatrix installation instructions to make sure yo
 LICENSE
 ----------
 Copyright (c) 2010, Pat Hickey
-You may use and redistribute this software under a BSD license. Your mileage may vary.
+You may use and redistribute this software under a BSD license. No warranties, your mileage may vary.
 If you find this code useful, or if you think it sucks, I'd love to hear from you.
 
 &C
 ----------
+Sensor Demo Video: http://www.youtube.com/watch?v=MI7AUXngJAg
+
 I wrote this code so I could fly airplanes with it. Its first use will be in this one : http://www.youtube.com/watch?v=DySuDdg4M1I
-Demo Video: http://www.youtube.com/watch?v=MI7AUXngJAg
 My Paparazzi for Linux project page may have more info : http://moreproductive.org/autopilot/
