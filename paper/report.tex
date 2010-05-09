@@ -132,23 +132,44 @@ Quaternion multiplication is a noncommutative operation: $q_1 q_2$ is not equal 
 The set of unit quaternions, all $q$ where $ ||q|| = 1$, are used to represent spatial rotations. For every unit quaternion $q$ 
 there exists a unit vector $\mathbf{v} = \begin{bmatrix} v_x & v_y & v_z \end{bmatrix}, ||v|| = 1$ 
 and an angle $\theta \in [-\pi, \pi]$ where 
-$q = \begin{bmatrix} \cos (\theta/2) & v_x \sin (\theta/2) & v_y \sin (\theta/2) & v_z \sin (\theta/2)\end{bmatrix}$. The quaternion formed in this represents a spatial rotation about axis $\mathbf{v}$ of angle $\theta$. We can also see that $q$ and $-q$ represent the same spatial rotation. 
+$q = \begin{bmatrix} \cos (\theta/2) & v_x \sin (\theta/2) & v_y \sin (\theta/2) & v_z \sin (\theta/2)\end{bmatrix}$. The quaternion formed in this represents a spatial rotation about axis $\mathbf{v}$ of angle $\theta$. 
+From this angle-axis notation, we can see that $q$ and $-q$ represent the same spatial rotation. 
 
 The inverse quaternion $q^{-1} = a - bi - cj - dk$ of a unit quaternion $q$ represents the inverse rotation $q$. We can visualize this as the same angle of rotation $\theta$ about an inverted axis $\mathbf{v}$.
 
 I refer the reader to --citations for more detailed information.
 
-\subsection{Algorithm Overview}
-
 \section{Hardware}
 \subsection{Sensors}
-needed 3 axis magnetometer, accellerometer, rate gyro
-selected two ics:
-invensense itg3200
-st micro ...
+In order to simplify the design of the sensor module, I selected two digital ICs which contain all of the sensing elements and analog to digital interfaces onboard. 
+Both digital devices selected require no external passive or active components aside from bypass capicators. Analog sensors, by comparison, often require several amplifier and filter components per channel, and often, for high resolution sensing applications, a discrete analog to digital converter (ADC) IC. In addition, analog ICs generally require an isolated ``quiet'' power and ground from digital ICs. 
+
+\subsubsection{Three-axis Accellerometer and Magnetometer}
+ST Micro's LSM303DLH, a three-axis accellerometer and magnetometer, was selected for this project. A single 6x6mm surface mount package contains both an accellerometer and magnetometer module, each with their own analog to digital converters and two-wire (I2C) serial interface. 
+
+The three-axis accellerometer has a maximum range of ... and ... bits (... g) of resolution. The maximum sample rate is ... samples per second.
+
+The accellerometer module includes a self-test functionality, which ...
+I've implemented a boot time self-test in the embedded code.
+
+The three-axis magnetometer has a maximum measurment range of  and ... bits (... unit) of resulution. The maximum sample rate is ... samples per second. 
+
+The magnetometer module includes a self-test functionality, which ...
+I've implemented a boot time self-test in the embedded code.
+
+The LSM303DLH is presently (May 2010) unreleased by ST Micro. I would like to thank ST Micro for donating an evaluation board to my project.
+
+\subsubsection{Three-axis Rate Gyro}
+
+Invensense's ITG-3200, a three-axis rate gyro, was selected for this project. A 4x4mm surface mount package contains three gyro axes, analog to digital converters, and a two-wire (I2C) serial interface. It has a full scale range of \plusminus 2000 degrees per second (deg/s) and 16 bits (14.375 LSB/deg/s) of resolution. The maximum sample rate is ... samples per second.
+
+The ITG-3200 was released by Invensense in April 2010 and is presently their flagship digital sensor. I would like to thank Invensense for donating an evaluation board to my project. 
+
 \subsection{Microcontroller}
-uart required to talk to a pc (ttyUSB), i2c required to talk to sensors
-arduino pro mini was a simple solution, easy to use programming environment
+A microcontroller was required to interface with the three sensor modules on a single I2C bus, perform boot-time configuration and self-test, and transfer measurments to a PC. I selected a Sparkfun Arduino Pro Mini board, a small breakout board based on a 3.3v Atmel AtMega328 microcontroller. The AtMega328 provides a single UART and single I2C peripheral. 
+
+The sensor board connects to the host computer with an FTDI serial to USB converter. The FTDI converter also provides 3.3v power to the board.
+
 \subsection{Construction}
 provide photographs, schematic
 
