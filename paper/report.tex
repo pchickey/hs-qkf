@@ -2,6 +2,7 @@
 \usepackage[pdftex]{graphicx}
 \usepackage{url}
 \usepackage{amsmath}
+\usepackage{listings}
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
 % correct bad hyphenation here
 \hyphenation{op-tical net-works semi-conduc-tor auto-nomous}
@@ -157,36 +158,78 @@ The three-axis magnetometer has a maximum measurment range of  and ... bits (...
 The magnetometer module includes a self-test functionality, which ...
 I've implemented a boot time self-test in the embedded code.
 
-The LSM303DLH is presently (May 2010) unreleased by ST Micro. I would like to thank ST Micro for donating an evaluation board to my project.
+The LSM303DLH is presently (May 2010) unreleased by ST Micro. I would like to thank ST Micro for donating an evaluation board to my project. The evaluation board provided 0.1" pitch headers, and connected both the accellerometer and magnetometer module's I2C bus to a common pair of pins. It also provides a configurable interrupt output pin for both the accellerometer and magnetometer module. The board takes 3.3v power and ground.
+
+% should include a photograph, citation
 
 \subsubsection{Three-axis Rate Gyro}
 
-Invensense's ITG-3200, a three-axis rate gyro, was selected for this project. A 4x4mm surface mount package contains three gyro axes, analog to digital converters, and a two-wire (I2C) serial interface. It has a full scale range of \plusminus 2000 degrees per second (deg/s) and 16 bits (14.375 LSB/deg/s) of resolution. The maximum sample rate is ... samples per second.
+Invensense's ITG-3200, a three-axis rate gyro, was selected for this project. A 4x4mm surface mount package contains three gyro axes, analog to digital converters, and a two-wire (I2C) serial interface. It has a full scale range of $\pm 2000$ degrees per second (deg/s) and 16 bits (14.375 LSB/deg/s) of resolution. The maximum sample rate is ... samples per second. Because the rate gyro is a MEMS device, it is important that the device is isolated from severe shocks, such as drops, which could cause internal damage.
 
-The ITG-3200 was released by Invensense in April 2010 and is presently their flagship digital sensor. I would like to thank Invensense for donating an evaluation board to my project. 
+The ITG-3200 was released by Invensense in April 2010 and is presently their flagship digital sensor. I would like to thank Invensense for donating an evaluation board to my project. The ITG-3200 was provided on an evaluation board with 0.1" pitch headers. It requires a pair of signals for I2C, an optional interrupt output signal, and 3.3v power and ground. The optional interrupt output signal can be configured to signal when an analog to digital conversion is complete.
+
+% should include a photograph, citation
 
 \subsection{Microcontroller}
-A microcontroller was required to interface with the three sensor modules on a single I2C bus, perform boot-time configuration and self-test, and transfer measurments to a PC. I selected a Sparkfun Arduino Pro Mini board, a small breakout board based on a 3.3v Atmel AtMega328 microcontroller. The AtMega328 provides a single UART and single I2C peripheral. 
+A microcontroller was required to interface with the three sensor modules on a single I2C bus, perform boot-time configuration and self-test, and transfer measurments to a PC. I selected a Sparkfun Arduino Pro Mini board, a small 0.1" pitch pin header breakout board based on a 3.3v Atmel AtMega328 microcontroller. The AtMega328 provides a single UART and single I2C peripheral. 
 
 The sensor board connects to the host computer with an FTDI serial to USB converter. The FTDI converter also provides 3.3v power to the board.
 
-\subsection{Construction}
-provide photographs, schematic
+% should include a photograph, citation
 
+\subsection{Construction}
+
+Because each sensor evaluation board used 0.1" pitch pins, I was able to use a 0.1" pitch protoboard and female pin headers to build a prototype sensor. The assembled sensor prototype is 2.5" x 4.5" x 0.75" in outer dimensions. To prevent electrostatic discharge and physical damage, it is velcroed inside a protective cardboard box with a lining of stiff anti-static foam. 
+
+% picture
+
+A schematic drawing is provided in the appendix. % do this
 
 \section{Embedded Software}
+\lstset{language=C++}
 \subsection{Requirments}
-timing and communication requirments of embedded hardware
-st acc self test
-\subsection{Communication Protocol}
-serial strings etc.
+The embedded software primarily needs to send the measurments read from the I2C bus to the host computer on its 
+UART\footnote{Universal Asynchronous Receive and Transmit; the receive/transmit method used by many serial protocols including RS232} 
+interface. Each sensor has a number of configuration registers which are accessed through the I2C interface which need to be 
+
+\subsection{Sensor Communication}
+
+The communication protocol for each sensor is best detailed in their datasheet, and I will not discuss them in depth here. The basic unit of interface is register read and register write. Some registers (for example, the latest measurment) are read-only, and reads may effect the state of the device. For example, a read of a register measurment on the ITG-3200 will clear the ``new measurment available'' flag on another register.   
+
+Read Register and Write Register commands both block for nontrivial amounts of time. 
+
+% listing with comments
+
+% calculate best-case blocking time based on bus bitrate (100kbps?)
+
+\subsection{Host Computer Communication}
+A simple serial protocol, based on NMEA-style sentences (cite), is defined for communication with the host computer. 
+
 \subsection{Arduino Environment}
+The Arduino environment is an IDE, C/C++ compiler, and collection of libraries for AtMega328 and similar Atmel AVR microcontrollers. It provides a high level interface to the hardware and is suitable for rapid prototype development. 
+
+The timing and logic requirments of the I2C and UART interfaces are handled in hardware, and the Arduino environment provides a library for blocking read and write operations on both of these interfaces. 
+
+On reset\footnote{The most common way to program AVR and similar microcontrollers is unsupervised by any kernel, therefore ``bare metal''. Essentially, on power on a bootloader checks for new firmware over the serial port, and if none is found, passes control to a single entry point. The C linker will choose \lstinline$main()$ unless told otherwise. This bare metal code can only be superceded by interrupt service routines.}
+, the Arduino environment will intitialize and call \lstinline$void setup()$. This code runs once and should setup all of the interfaces which will remain the same throughout execution. The setup code then initializes the configuration registers of the sensor devices, performs sanity checks of those registers to ensure successful writes, and performs the self-test of the magnetometer and accellerometer device. 
+
+% listing here
+
+Once the \lstinline$setup$ routine has returned, the Arduino environment will call \lstinline$void loop()$ in an endless loop. This code performs reads of any available sensor measurment, and prints the result to the serial port.
+
+% listing here
+
+In this code, many operations involve serial reads and writes which block for significant amounts of time. The (... check new) calls actually read registers on the sensor device, which takes a nontrivial amount of time. 
+
+
+
 describe arduino programming environment
 blocking serial calls
 -- Provide timing information?
 
 \section{Filtration Software}
 The filtration software was implemented in Haskell. The code may be found on Github at \url{http://github.com/pchickey/hs-qkf/}
+\lstset{language=Haskell}
 \subsection{Algorithm Selection}
 find an algorithm which assumes my measurment sources
 \subsection{Implementation of Filter}
