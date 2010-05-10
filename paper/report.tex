@@ -40,9 +40,11 @@ The sensor software needs to cooperate with the soft real-time main control loop
 
 \subsection{Use of Haskell}
 
-The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source implementations of functionally similar software is available. 
+The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source implementations of functionally similar software is available. Similarily, there are a lot of existing resources for Matlab, which is a strong platform for simulation and plotting. However, the Matlab language is not as powerful as C or C++, and is of limited use testing with actual hardware. 
 
 I decided to write the filter software using Haskell. Haskell is a purely functional language with a powerful type system, and is not typically used for soft real-time applications. However, I believe Haskell is well suited for writing algorithms because it can express mathematical concepts elegantly, and often transparently. It is often possible to reason about Haskell code in the exact same way as mathematics. This results in code which is code more readable and more easily modified. 
+
+
 
 \section{Theoretical Basis}
 
@@ -606,7 +608,9 @@ rateEstimateUpdate Measurment { source = Gyro, body = b } adt re =
   residual = b - (omega re)
 
 rateEstimateUpdate _ _ re = re 
-
+\end{lstlisting}
+We implement a simple \lstinline$rateEstimateUpdate$ function which is a simple low pass filter on rate gyro \lstinline$Measurment$s into a \lstinline$RateEstimate$ usable by \lstinline$timePropogate$. This same filter is used by the real implementation as well.
+\begin{lstlisting}
 -- rezero: initial state for rate estimate. 
 rezero = RateEstimate { omega = [$vec|0,0,0|]
                       , dt = 0.02
@@ -623,6 +627,8 @@ I provide initialized filter states in this module as well, with constants that 
 In order to test the quaternion Kalman filter, I wrote some Euler angle translation functions using ... in order to visualize simple rotational frames. The Euler angles have various issues that prevent them from being useful to describe filter state, the most significant of which is the condition called \emph{gimbal lock} where, at``poles'' in the spherical space, it is impossible to determine one of the three angles. An analogy of this problem using the earth's geography as a spherical space is that, from the north pole, each direction is south, and the directions of east and west cannot be determined.
 
 I defined two modules, Eulers321 and Eulers313, which use two different conventions to describe euler angles. The derivations for each angle convention is described in ... . I have ommited code below for brevity.
+
+We use these functions below in QkfTest to generate measurments from an euler angle simulation of the state, and then compare the output state to the input state.
 
 \subsubsection{Eulers321.hs}
 \begin{lstlisting}
@@ -692,9 +698,142 @@ ematOfEulers :: Eulers -> Emat
 -- ommited for brevity
 \end{lstlisting}
 
-We use this notation in 
-rotation-matrix based vector measurment simulation
-addition of noise
+\subsubsection{QkfTest.hs}
+
+\begin{lstlisting}
+module QkfTest where
+import Control.Monad
+import Control.Concurrent
+import System.Random
+import Numeric.LinearAlgebra.Static
+import Graphics.Gnuplot.Simple
+-- Project Modules:
+import Quaternion
+import Eulers321
+import Qkf
+
+\end{lstlisting}
+The to Measurment functions are used to simulate a measurment given Eulers.
+\begin{lstlisting}
+
+-- Measurment functions: generate a filter input from Euler angles
+toVecMeasurment :: MeasurmentSource -> RefVec -> Eulers -> Measurment
+toVecMeasurment s r e = 
+  Measurment{ source = s
+            , body = (matOfEulers e) <> r
+            , ref = r
+            , meascov = liftMatrix (* constant 0.00001) (atRows ident d3) }
+
+toAccMeasurment = toVecMeasurment Accelerometer [$vec|0,0,-1|] 
+toMagMeasurment = toVecMeasurment Magnetometer [$vec|1,0,0|] 
+
+toGyroMeasurment :: Eulers -> WorldAngularRate-> Measurment
+toGyroMeasurment e edot = 
+  Measurment { source = Gyro
+             , body = (inv $ ematOfEulers e) <> edot 
+             , ref = [$vec|0,0,0|]
+             , meascov = liftMatrix (* constant 0.01) (atRows ident d3) }
+
+\end{lstlisting}
+\lstinline$generateWalk$ is a good example of a Haskell operation on lists. Given an initial euler angle, a list of derivatives, and the simulation time between elements in the derivative list, it will produce a list of eulers.
+\begin{lstlisting}
+
+-- given: initial euler angles, list of derivatives, time step between derivatives
+-- produces: list of resulting euler angles
+generateWalk :: Eulers -> [WorldAngularRate]-> Time -> [Eulers]
+generateWalk e (edot:edots) dt = (e:es)
+                  where e' = advanceConst e edot dt
+                        es = generateWalk e' edots dt
+generateWalk _ [] _ = []
+
+\end{lstlisting}
+
+\lstinline$feedfilter$ takes a timestep, a list of the simulated measurments, and a tuple of the two filter states. It produces a list of resulting filter states. 
+
+\begin{lstlisting}
+feedfilter :: Time -> [(Measurment, Measurment, Measurment)] -> (FilterState, RateEstimate) -> [(FilterState, RateEstimate)]
+feedfilter dt ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
+  where 
+    s'acc = measurmentUpdate ma state
+    s'mag = measurmentUpdate mm s'acc
+    rate' = rateEstimateUpdate mg dt rate
+    s'gyro = timePropogate rate' s'mag
+    states = feedfilter dt ms (s'gyro, rate')
+\end{lstlisting}
+
+\lstinline$statictest$ implements test commonly refered to as the ``unit step,'' where the filter is given a steady state input at t=0 to test convergence from the initial value. This function has the filter seek \lstinline$e$ = $(\pi/4, \pi/3, 0)$. f
+
+\begin{lstlisting}
+statictest = do
+  let e = [$vec| pi/4, pi/3, 0 |] :: Eulers
+  let edot = [$vec| 0,0,0 |]
+  let f = feedfilter 0.05 (repeat 
+                      (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
+                     (fszero, rezero)
+  plotLists [] $ (stateqs $ take 10 f) ++ (justqs $ take 10 $ repeat $ qOfEulers e)
+  let q10th =  q . fst . last . take 10 $ f
+  putStrLn "Filtered quaternion after 10 iterations:"
+  putStrLn $ show q10th
+  putStrLn "Theoretical static quaternion:"
+  putStrLn $ show $ qOfEulers e
+  putStrLn "Supplied set of angles"
+  putStrLn $ show e
+  putStrLn "Set of angles derived from filtered quaternion"
+  putStrLn $ show $ eulersOfQ q10th
+
+velocitytest = do
+  let einit = [$vec| pi/4, pi/3, 0 |] :: Eulers
+  let edot = [$vec|pi/3, -pi/12, 0|] :: WorldAngularRate
+  let edots = (replicate 10 [$vec|0,0,0|]) ++ (replicate 25 edot) ++ repeat [$vec|0,0,0|]
+  let dt = 0.05 -- 20hz
+  let walk = generateWalk einit edots dt
+ 
+  let f = feedfilter' dt (meas walk edots) (fszero, rezero) 
+  let fs = take 50 f
+  let ws = take 50 walk
+
+  plotQuaternions ws fs
+  plotEulers ws fs
+\end{lstlisting}
+
+It would be nice to plot, as in Matlab, to examine the filter input and output. Using the \lstinline$Graphics.Gnuplot.Simple$ library\footnote{\lstinline$Graphics.Gnuplot.Simple$ is a simple interface to the \lstinline$Graphics.Gnuplot$ library, distributed on hackage as the \emph{gnuplot} package. \url{http://hackage.haskell.org/package/gnuplot}}, we can examine our results immediately after execution. 
+
+These functions might be the weakest point of comparison to Matlab, as they're quite verbose in order to fully customize the graph before plotting. There is also a library bug which prevents plots from being labeled. This part of the environment could be improved in the future.
+
+\begin{lstlisting}
+plotQuaternions walks filters =
+  let (fq0,fq1,fq2,fq3) = stateqTs filters
+      (wq0,wq1,wq2,wq3) = justqTs $ map qOfEulers walks
+      wtype = Lines
+      ftype = Points
+  in plotListsStyle [ Title "Quat Components" ]
+                   {- , Key (Just [ "Input qre","Output qre"
+                                , "Input qx","Output qx"
+                                , "Input qy","Output qy"
+                                , "Input qz","Output qz"]) -- Gnuplot Interface Broken? -}
+      [ (PlotStyle wtype (DefaultStyle 4), wq0)
+      , (PlotStyle ftype (DefaultStyle 4), fq0) 
+      , (PlotStyle wtype (DefaultStyle 1), wq1)
+      , (PlotStyle ftype (DefaultStyle 1), fq1)
+      , (PlotStyle wtype (DefaultStyle 2), wq2)
+      , (PlotStyle ftype (DefaultStyle 2), fq2)
+      , (PlotStyle wtype (DefaultStyle 3), wq3)
+      , (PlotStyle ftype (DefaultStyle 3), fq3)]
+                                                      
+plotEulers walks filters =
+  let (fa1, fa2, fa3) = stateangleTs filters
+      (wa1, wa2, wa3) = angleTs walks
+      wtype = Lines
+      ftype = Points
+  in plotListsStyle [ Title "Euler Angles" ]
+     [ (PlotStyle wtype (DefaultStyle 1), wa1)
+     , (PlotStyle ftype (DefaultStyle 1), fa1)
+     , (PlotStyle wtype (DefaultStyle 2), wa2)
+     , (PlotStyle ftype (DefaultStyle 2), fa2)
+     , (PlotStyle wtype (DefaultStyle 3), wa3)
+     , (PlotStyle ftype (DefaultStyle 3), fa3) ]
+\end{lstlisting}
+
 \subsection{Sensor Interface}
 serial.hs
 \subsection{Gnuplot Interface}
@@ -706,6 +845,9 @@ ffi, linux mq
 "ongoing investigation" is code for, I haven't done it yet
 
 \section{Results}
+
+I managed to use Haskell to achieve soft real-time without resorting to C, and was able to simulate and visualize my algorithm with the ease and power normally associated with Matlab. Haskell allowed me to test the filter with both 2D plots and real-time 3D rendering with both simulated data and sensor data.
+
 \subsection{Noise-free simulated measurments}
 Plots of step test, ramp test
 \subsection{Noisy simulated measurments}
