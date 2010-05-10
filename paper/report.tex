@@ -287,7 +287,10 @@ blocking serial calls
 The filtration software was implemented in Haskell. The code may be found on Github at \url{http://github.com/pchickey/hs-qkf/}
 \lstset{language=Haskell}
 \subsection{Algorithm Selection}
-find an algorithm which assumes my measurment sources
+I based the algorithm of Daniel Choukroun's "A Novel Quaternion Kalman Filter" (cite). The paper defines an algorithm for using both vector (accellerometer and magnetometer) and derivative (rate gyro) measurments optimally. Notably, it updates a quaternion state estimate by finding a Kalman filter observation matrix $H$ which relates body-frame vector measurments to the rotational frame estimate.
+
+I used James Deibel's "..." (cite) as a reference source for converting angular representations of orientation to quaternion representions, and vice versa. 
+
 \subsection{Implementation of Filter}
 
 \subsubsection{Quaternion.hs}
@@ -298,9 +301,11 @@ import Numeric.LinearAlgebra.Static
 type Quat = Vector D4 Double
 
 -- Quaternion accessor convention:
--- In the James Deibel paper, quaternions are [re i j k] ordered; 
+-- In the James Deibel paper, quaternions 
+--    are [re i j k] ordered; 
 -- type Quat used by module Qkf is [i j k re] ordered.
--- Therefore, use these accessors for the component within this program
+-- Therefore, use these accessors for the 
+--   component within this program
 
 -- Real component
 q0 :: Quat -> Double
@@ -401,7 +406,7 @@ crossProdMat v =
 
 \end{lstlisting}
 
-The \lstinline%[$mat| |]% and \lstinline%[$vec| |]% macros make it possible to construct matricies and vectors in a similar syntax to Matlab, which greatly aids readability.
+The \lstinline& [$mat| |] & and \lstinline& [$vec| |] & macros make it possible to construct matricies and vectors in a similar syntax to Matlab, which greatly aids readability.
 
 \begin{lstlisting}
 
@@ -416,12 +421,21 @@ qvec q =
   q1 = q @> 1
   q2 = q @> 2
 
+\end{lstlisting}
+The \lstinline$qre$ and \lstinline$qvec$ accessors provide a syntax that resembles that in D. Choukroun's paper.
+\begin{lstlisting}
 unitq :: Quat -> Quat 
 unitq qq = 
   qq / constant norm 
   where 
-  norm = sqrt $ (qq@>0)*(qq@>0)+(qq@>1)*(qq@>1)+(qq@>2)*(qq@>2)+(qq@>3)*(qq@>3)
+  norm = sqrt $ (qq@>0)*(qq@>0)+(qq@>1)*(qq@>1)+
+		(qq@>2)*(qq@>2)+(qq@>3)*(qq@>3)
 
+\end{lstlisting}
+
+Some quaternion manipulations in the Kalman filter do not produce a unit quaternion because D. Choukroun's derivations did not require unit length. To simplify the interface to the filter, we normalize a quaternion with \lstinline$unitq$.
+
+\begin{lstlisting}
 attMatOfQ :: Quat -> AttitudeMat
 attMatOfQ qq = 
   liftMatrix (*constant  (q*q - e <.> e)) (ident `atRows` d3) + 
@@ -431,7 +445,8 @@ attMatOfQ qq =
   q = qre qq 
   e = qvec qq
 
--- mulQLeftMat is the matrix Q1 of q1 where Q1<>q2 = quaternion multiplication q1*q2
+-- mulQLeftMat is the matrix Q1 of q1 where 
+-- Q1<>q2 = quaternion multiplication q1*q2
 mulQLeftMat :: Quat -> Matrix (D4, D4) Double
 mulQLeftMat qq = [$mat| w, -z,  y,  x;
                         z,  w, -x,  y;
@@ -443,7 +458,8 @@ mulQLeftMat qq = [$mat| w, -z,  y,  x;
 mulqq :: Quat -> Quat -> Quat
 mulqq q1 q2 = (mulQLeftMat q1) <> q2
 
--- inverse quaternion: negate the axis to reverse direction of rotation
+-- inverse quaternion: negate the axis to 
+-- reverse direction of rotation
 invq :: Quat -> Quat
 invq qq = [$vec| -x, -y, -z, w |]
   where w = qq @> 3; x = qq @> 0; y = qq @> 1; z = qq @> 2
@@ -453,7 +469,13 @@ rad2deg rads = rads * 180.0 / pi
 deg2rad :: (Floating a) => a -> a
 deg2rad degs = degs * pi / 180.0
 
--- The vecQ functions are for rotating a three-space vector by a quaternion
+\end{lstlisting}
+
+Utility functions that should be self explanatory.
+
+\begin{lstlisting}
+-- The vecQ functions are for rotating a 
+-- three-space vector by a quaternion
 vecQRightMat :: Vector D3 Double -> Matrix (D4, D4) Double
 vecQRightMat b = 
   ((negboX <|> bo) <-> (negbot <|> [$mat| 0 |]))
@@ -469,7 +491,11 @@ vecQLeftMat b =
   boX = crossProdMat b
   bo = asColumn b
   negbot = liftMatrix (*constant (-1)) (asRow b)
+\end{lstlisting}
 
+Hmatrix-static provides operators \lstinline$<->$ and \lstinline$<|>$ to join matricies horizontally and vertically.
+
+\begin{lstlisting}
 observationMatOf :: RefVec -> BodyVec -> ObservationMat
 observationMatOf r b = 
   ( (negsx <|> asColumn d) <->
@@ -479,7 +505,11 @@ observationMatOf r b =
   d = liftVector2 (*) (constant 0.5) (b - r)
   negsx = liftMatrix (*constant (-1)) (crossProdMat s)
   negdt = liftMatrix (*constant (-1)) (asRow d)
+\end{lstlisting}
 
+The observation matrix (in ..., $H$) is a function of the measurment BodyVec and known RefVec.
+
+\begin{lstlisting}
 zetaMatOf :: Quat -> ZetaMat
 zetaMatOf qq = 
   (ex + liftMatrix (* constant q) (ident `atRows` d3)) <-> 
@@ -489,12 +519,23 @@ zetaMatOf qq =
   e = qvec qq
   ex = crossProdMat e
 
+\end{lstlisting}
+
+The matrix $\Xi$, which I ignorantly coded as ``Zeta,'' maps measurment error into the state space in the same way the matrix $H$ maps measurments into the state space.
+
+\begin{lstlisting}
 transitionMatOf :: AngularRate -> Time -> TransitionMat
 transitionMatOf w dt = 
   expm omegadt
   where 
   omega = vecQRightMat w
   omegadt = liftMatrix (* constant dt) omega
+
+\end{lstlisting}
+
+This transition matrix is derived in ... as a matrix multiplication on a quaternion. I wanted to ensure it was equivelant to the more common derivation, and so I wrote a function below, \lstinline$transitionQuatOf$, which uses quaternion multiplication and the angle-axis method.
+
+\begin{lstlisting}
 
 transitionQuatOf :: AngularRate -> Time -> Quat
 transitionQuatOf w dt = 
@@ -516,6 +557,7 @@ timePropogate r s =
   zetat = ((dt r)/2)^2
   qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))
 
+timePropogate' :: RateEstimate -> FilterState -> FilterState
 timePropogate' r s = 
   FilterState { q = mulqq qomega (q s)
               , p = phi <> (p s) <> (trans phi) + qkq }
@@ -525,6 +567,11 @@ timePropogate' r s =
   zeta = zetaMatOf (q s)
   zetat = (^2) . (/2) . dt $ r
   qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))  
+
+\end{lstlisting}
+Two similar versions of timePropogate, the second explicitly using quaternion multiplication for propogation. This is an example which demonstrates how simple it is to modify an algorithm in Haskell.
+
+\begin{lstlisting}
 
 measurmentUpdate :: Measurment -> FilterState -> FilterState
 measurmentUpdate m s = 
@@ -544,6 +591,11 @@ measurmentUpdate m s =
   k = (p s) <> ht <> (inv sk)  
   up = (i4 - k <> h)
 
+\end{lstlisting}
+A measurment update maps FilterState to FilterState with a Measurment. If that doesn't make nice semantic sense, I don't know what does. 
+
+\begin{lstlisting}
+
 rateEstimateUpdate :: Measurment -> Time -> RateEstimate -> RateEstimate
 rateEstimateUpdate Measurment { source = Gyro, body = b } adt re = 
   RateEstimate { omega = (omega re) + constant k * residual
@@ -558,17 +610,18 @@ rateEstimateUpdate _ _ re = re
 -- rezero: initial state for rate estimate. 
 rezero = RateEstimate { omega = [$vec|0,0,0|]
                       , dt = 0.02
-                      -- qke is pretty high to keep filte stable. need to look into this
                       , qke = liftMatrix (*constant 10) (atRows ident d3) }
 fszero = FilterState { q = qzero
                      -- p is large to account for random initial position
                      , p = liftMatrix (*constant 5) (atRows ident d4) }
 
 fnorm x = pnorm PNorm2 x
-
 \end{lstlisting}
+I provide initialized filter states in this module as well, with constants that were found to be appropriate.
+
 \subsection{Implementation of Tests}
-euler models
+
+
 rotation-matrix based vector measurment simulation
 addition of noise
 \subsection{Sensor Interface}
@@ -579,7 +632,7 @@ overview, code snippets
 cube.hs overview, code snippets 
 \subsection{Paparazzi Autopilot Interface}
 ffi, linux mq
-"ongoing investigation"
+"ongoing investigation" is code for, I haven't done it yet
 
 \section{Results}
 \subsection{Noise-free simulated measurments}
