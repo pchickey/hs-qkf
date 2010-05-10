@@ -116,7 +116,7 @@ where rate gyro zero offset $\Delta_\omega$ is the constant vector output when t
 and measurment noise $\delta_\omega$ is a zero-mean gaussian random vector with covariance matrix
 \begin{equation} \label{eq:Qomega}
 	Q_\omega = \begin{pmatrix} \sigma_\omega^2 & 0 & 0 \\
-	                      0 & \sigma_\omega^2 & 0 \\ 
+	                  ]    0 & \sigma_\omega^2 & 0 \\ 
 	                      0 & 0 & \sigma_\omega^2 \end{pmatrix} 
 \end{equation}
 
@@ -185,9 +185,10 @@ Because each sensor evaluation board used 0.1" pitch pins, I was able to use a 0
 
 A schematic drawing is provided in the appendix. % do this
 
+\lstset{language=C++,basicstyle=\ttfamily}
 \section{Embedded Software}
-The code described in this section can be found at \url{http://github.com/pchickey/p4l-ahrs}.
-\lstset{language=C++}
+The code described in this section can be found at \url{http://github.com/pchickey/p4l-ahrs}. It is built using the open source Arduino IDE, which can be found at \url{http://arduino.cc}.
+
 \subsection{Requirments}
 The embedded software primarily needs to send the measurments read from the I2C bus to the host computer on its 
 UART\footnote{Universal Asynchronous Receive and Transmit; the receive/transmit method used by many serial protocols including RS232} 
@@ -197,9 +198,63 @@ interface. Each sensor has a number of configuration registers which are accesse
 
 The communication protocol for each sensor is best detailed in their datasheet, and I will not discuss them in depth here. The basic unit of interface is register read and register write. Some registers (for example, the latest measurment) are read-only, and reads may effect the state of the device. For example, a read of a register measurment on the ITG-3200 will clear the ``new measurment available'' flag on another register.   
 
-Read Register and Write Register commands both block for nontrivial amounts of time. 
+Read Register and Write Register commands both block for nontrivial amounts of time.
+\lstset{language=C++,basicstyle=\ttfamily}
+From i2c_registers.pde
+\begin{lstlisting}
+#include <Wire.h>
+char i2cReadRegister(int i2c_device, char i2c_register)
+{
+  Wire.beginTransmission(i2c_device);
+  Wire.send(i2c_register);
+  Wire.endTransmission();
+  Wire.requestFrom(i2c_device, 1);
+  return Wire.receive();  
+}
 
-% listing with comments
+void i2cReadRegisterSequential(int i2c_device, char i2c_register, 
+        int len, char * buf)
+{
+  Wire.beginTransmission(i2c_device);
+  Wire.send(i2c_register);
+  Wire.endTransmission();
+  Wire.requestFrom(i2c_device, len);
+  int ii;
+  for(ii = 0; ii < len; ii++)
+    buf[ii] = Wire.receive();
+  return;
+}
+void i2cWriteRegister(int i2c_device, char i2c_register, char value)
+{
+  Wire.beginTransmission(i2c_device);
+  Wire.send(i2c_register);
+  Wire.send(value);
+  Wire.endTransmission();
+}  
+\end{lstlisting}
+
+The \lstinline$Wire$ library is provided by the Arduino IDE.  The \lstinline$Wire$ object is instantiated as the interface to the single I2C peripheral\footnote{For more information on the I2C bus, see ...} on the AtMega chip. The peripheral will control the bus state and provide byte-at-a-time synchronous transmit and receive. 
+
+Note that \lstinline$beginTransmission(int)$, \lstinline$send(char)$, and \lstinline$requestFrom(int, int)$ only return after 8 bits have been sent on the I2C bus. At a bitrate of 100kHz we can expect this to take 80$\mu$s (0.08ms). A call to \lstinline$receive()$ will not return until one byte has been received on the bus. If the slave device responds immediately, this will only take 80$mu$s, but could possibly take longer if the slave device misbehaves and holds the bus in ``wait to receive'' state.
+\begin{lstlisting}
+void i2cWriteWithCheck(int i2c_device, char i2c_register, 
+        char value, char* name)
+{
+  i2cWriteRegister(i2c_device, i2c_register, value);
+  char check = i2cReadRegister(i2c_device, i2c_register);
+  if (check != value)
+  {
+    Serial.print("$DEBUG,");
+    Serial.print(name);
+    Serial.print(" config appears unsuccessful.");
+    Serial.print("expected ");
+    Serial.print(int(value));
+    Serial.print(" read ");
+    Serial.println(int(check));
+  }
+}
+\end{lstlisting}
+In the boot configuration of sensors, I use a wrapper on \lstinline$i2cWriteRegister$ which confirms a write was successful. Unsuccessful writes usually indicate the sensor is malfunctioning.
 
 % calculate best-case blocking time based on bus bitrate (100kbps?)
 
