@@ -200,7 +200,7 @@ The communication protocol for each sensor is best detailed in their datasheet, 
 
 Read Register and Write Register commands both block for nontrivial amounts of time.
 \lstset{language=C++,basicstyle=\ttfamily}
-From i2c_registers.pde
+From i2c\_registers.pde
 \begin{lstlisting}
 #include <Wire.h>
 char i2cReadRegister(int i2c_device, char i2c_register)
