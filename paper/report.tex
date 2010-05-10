@@ -622,6 +622,9 @@ I provide initialized filter states in this module as well, with constants that 
 \subsection{Implementation of Tests}
 In order to test the quaternion Kalman filter, I wrote some Euler angle translation functions using ... in order to visualize simple rotational frames. The Euler angles have various issues that prevent them from being useful to describe filter state, the most significant of which is the condition called \emph{gimbal lock} where, at``poles'' in the spherical space, it is impossible to determine one of the three angles. An analogy of this problem using the earth's geography as a spherical space is that, from the north pole, each direction is south, and the directions of east and west cannot be determined.
 
+I defined two modules, Eulers321 and Eulers313, which use two different conventions to describe euler angles. The derivations for each angle convention is described in ... . I have ommited code below for brevity.
+
+\subsubsection{Eulers321.hs}
 \begin{lstlisting}
 {-# LANGUAGE QuasiQuotes #-}
 module Eulers321 where
@@ -662,20 +665,7 @@ matOfEulers eulers =
 --  except re-ordered with real component last
 -- to fit type Quat convention.
 qOfEulers :: Eulers -> Quat
-qOfEulers eulers =
-  [$vec| 
-         cphi * cthe * spsi + sphi * cpsi * sthe,
-         cphi * cpsi * sthe - sphi * cthe * spsi,
-         cphi * sthe * spsi + cthe * cpsi * sphi,
-         cphi * cthe * cpsi - sphi * sthe * spsi
-         |]
-  where
-  cphi = cos . (/2) . phi   $ eulers
-  sphi = sin . (/2) . phi   $ eulers
-  cthe = cos . (/2) . theta $ eulers
-  sthe = sin . (/2) . theta $ eulers
-  cpsi = cos . (/2) . psi   $ eulers
-  spsi = sin . (/2) . psi   $ eulers
+-- omitted for brevity
 
 -- Deibel (452)
 eulersOfQ :: Quat -> Eulers
@@ -699,16 +689,7 @@ eulersOfQ q =
 type Emat = Matrix (D3,D3) Double
 -- Deibel (453)
 ematOfEulers :: Eulers -> Emat
-ematOfEulers e = [$mat| sthe      , 0    , 1
-                      ;-spsi*cthe , cpsi , 0
-                      ; cpsi*cthe , spsi , 0 |]
-  where
-  cthe = cos . theta $ e
-  sthe = sin . theta $ e
-  cpsi = cos . psi   $ e
-  spsi = sin . psi   $ e
-
-
+-- ommited for brevity
 \end{lstlisting}
 
 We use this notation in 
