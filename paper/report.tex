@@ -798,7 +798,7 @@ velocitytest = do
 
 It would be nice to plot, as in Matlab, to examine the filter input and output. Using the \lstinline$Graphics.Gnuplot.Simple$ library\footnote{\lstinline$Graphics.Gnuplot.Simple$ is a simple interface to the \lstinline$Graphics.Gnuplot$ library, distributed on hackage as the \emph{gnuplot} package. \url{http://hackage.haskell.org/package/gnuplot}}, we can examine our results immediately after execution. 
 
-These functions might be the weakest point of comparison to Matlab, as they're quite verbose in order to fully customize the graph before plotting. There is also a library bug which prevents plots from being labeled. This part of the environment could be improved in the future.
+These functions might be the weakest point of comparison to Matlab, as they're quite verbose in order to fully customize the graph before plotting. There is also a library bug which prevents plots from being labeled. This portion of the project leaves room for future improvment, but gets the job done.
 
 \begin{lstlisting}
 plotQuaternions walks filters =
@@ -810,7 +810,8 @@ plotQuaternions walks filters =
                    {- , Key (Just [ "Input qre","Output qre"
                                 , "Input qx","Output qx"
                                 , "Input qy","Output qy"
-                                , "Input qz","Output qz"]) -- Gnuplot Interface Broken? -}
+                                , "Input qz","Output qz"]) 
+                    -- Gnuplot Interface Broken -}
       [ (PlotStyle wtype (DefaultStyle 4), wq0)
       , (PlotStyle ftype (DefaultStyle 4), fq0) 
       , (PlotStyle wtype (DefaultStyle 1), wq1)
@@ -835,7 +836,46 @@ plotEulers walks filters =
 \end{lstlisting}
 
 \subsection{Sensor Interface}
-serial.hs
+\subsubsection{SerialQKF.hs}
+Its pretty easy to use serial ports in Haskell. \lstinline$System.Hardware.Serialport$\footnote{On Hackage, the \emph{serialport} package: \url{http://hackage.haskell.org/package/serialpot/}} provides full access to the baud settings and extra signals on my FT232-based USB to Serial converter.
+\begin{lstlisting}
+module SerialQKF where
+import System.Hardware.Serialport
+import Control.Monad hiding (forM, forM_)
+import Data.Foldable -- has instance Foldable Maybe, so we can forM across Maybes
+import Control.Monad.Loops
+import Control.Concurrent
+import Numeric.LinearAlgebra.Static
+import Qkf
+
+serialBegin :: IO SerialPort
+serialBegin = do
+  s <- openSerial "/dev/ftdi5" defaultSerialSettings { baudRate = B115200 }
+  -- next 3 lines: toggle reset on Arduino
+  setDTR s False
+  threadDelay 500000
+  setDTR s True
+  return s
+
+\end{lstlisting}
+
+A \lstinline$SerialPort$'s \lstinline$getChar$ equivelant is \lstinline$recvChar :: SerialPort -> IO (Maybe Char)$. The IO is of \lstinline$Maybe Char$ to support a timeout of the \lstinline$recvChar$ call. 
+
+\lstinline$recvChar$ is used here to build a function that returns full lines. Perhaps \lstinline$recvLine$ would have been a better name. It is built based on the \lstinline$getLine$ function described in ... .
+
+\begin{lstlisting}
+-- from Tackling the Awkward Squad 
+getLineMaybe :: SerialPort -> IO [Char] 
+getLineMaybe s = do { c <- recvChar s;
+                      case c of
+                      Just '\n' -> return []
+                      Just a    -> do { cs <- getLineMaybe s;
+                                      return (a:cs) }
+                      Nothing   -> do { cs <- getLineMaybe s;
+                                      return(cs) }
+                    }
+\end{lstlisting}
+
 \subsection{Gnuplot Interface}
 overview, code snippets
 \subsection{OpenGL Demonstration Interface}
