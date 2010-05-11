@@ -48,7 +48,7 @@ I decided to write the filter software using Haskell. Haskell is a purely functi
 
 \section{Theoretical Basis}
 
-The theoretical basis for this paper has been primarily drawn from -- cite dchoukrouns paper. I hope this section provides a clear explanation of how that theory applies to this project.
+The theoretical basis for this paper has been primarily drawn from \cite{choukroun04}. I hope this section provides a clear explanation of how that theory applies to this project.
 
 \subsection{Measurement Vectors}
 Because the sensors are fixed to the frame (\emph{body}) we're estimating the orientation, accelerometer and magnetometer provide us with vector measurements in the body frame. We denote body frame vectors with $b_x$. The expected vector of that measurement in the global frame is $g_x$. For example, the expected global frame acceleration $g_a = \begin{bmatrix} 0 & 0 & -1\end{bmatrix} $ in units normalized to $1g$ ($9.81m/s^2$)
@@ -83,7 +83,7 @@ Covariance matrix $Q_a$ will be used in the measurement model of the Kalman Filt
 
 \subsubsection{Magnetometer Measurement}
 
-A magnetometer measures the magnitude magnetic field in one direction. I refer the interested reader to ... for a physical explanation of magnetometer sensors. The three separate measured magnetic field magnitudes ($m_x, m_y, m_z$) are considered as a three dimensional vector
+A magnetometer measures the magnitude magnetic field in one direction. I refer the interested reader to \cite{wikimagnetometer} for a physical explanation of magnetometer sensors. The three separate measured magnetic field magnitudes ($m_x, m_y, m_z$) are considered as a three dimensional vector
 \begin{equation} \label{eq:defb}
   m = \begin{bmatrix} m_x & m_y & m_z \end{bmatrix}
 \end{equation}
@@ -122,7 +122,7 @@ and measurement noise $\delta_\omega$ is a zero-mean Gaussian random vector with
 	                      0 & 0 & \sigma_\omega^2 \end{pmatrix} 
 \end{equation}
 
-In reality, zero offset $\Delta_\omega$ may drift with time and change in temperature. Compensation for this gyro drift is outside the scope of this paper, but has been solved in --cite Dacrons better paper.
+In reality, zero offset $\Delta_\omega$ may drift with time and change in temperature. Compensation for this gyro drift is outside the scope of this paper, but has been solved in \cite{choukroun04}.
 
 \subsection{Quaternion Representation}
 
@@ -150,7 +150,8 @@ Both digital devices selected require no external passive or active components a
 \subsubsection{Three-axis Accelerometer and Magnetometer}
 ST Micro's LSM303DLH, a three-axis accelerometer and magnetometer, was selected for this project. A single 6x6mm surface mount package contains both an accelerometer and magnetometer module, each with their own analog to digital converters and two-wire (I2C) serial interface. 
 
-The three-axis accelerometer has a maximum range of ... and ... bits (... g) of resolution. The maximum sample rate is ... samples per second.
+The three-axis accelerometer has a maximum range of 
+... and ... bits (... g) of resolution. The maximum sample rate is ... samples per second.
 
 The accelerometer module includes a self-test functionality, which ...
 I've implemented a boot time self-test in the embedded code.
@@ -239,7 +240,7 @@ void i2cWriteRegister(int i2c_device,
 }  
 \end{lstlisting}
 
-The \lstinline$Wire$ library is provided by the Arduino IDE.  The \lstinline$Wire$ object is instantiated as the interface to the single I2C peripheral\footnote{For more information on the I2C bus, see ...} on the AtMega chip. The peripheral will control the bus state and provide byte-at-a-time synchronous transmit and receive. 
+The \lstinline$Wire$ library is provided by the Arduino IDE.  The \lstinline$Wire$ object is instantiated as the interface to the single I2C peripheral\footnote{For more information on the I2C bus, see \cite{wikii2c}} on the AtMega chip. The peripheral will control the bus state and provide byte-at-a-time synchronous transmit and receive. 
 
 Note that \lstinline$beginTransmission(int)$, \lstinline$send(char)$, and \lstinline$requestFrom(int, int)$ only return after 8 bits have been sent on the I2C bus. At a bit rate of 100kHz we can expect this to take 80$\mu$s (0.08ms). A call to \lstinline$receive()$ will not return until one byte has been received on the bus. If the slave device responds immediately, this will only take 80$mu$s, but could possibly take longer if the slave device misbehaves and holds the bus in ``wait to receive'' state.
 \begin{lstlisting}
@@ -265,7 +266,7 @@ In the boot configuration of sensors, I use a wrapper on \lstinline$ i2cWriteReg
 % calculate best-case blocking time based on bus bitrate (100kbps?)
 
 \subsection{Host Computer Communication}
-A simple serial protocol, based on NMEA-style sentences (cite), is defined for communication with the host computer. The grammar for these sentences is \\
+A simple serial protocol, based on NMEA-style sentences \cite{gpsinfonmea}, is defined for communication with the host computer. The grammar for these sentences is \\
 \emph{Sensor} := ``M" $|$ ``A" $|$ ``G" \\
 \emph{Value} := ``-32768" $|$ ``-32767" $|$ ... $|$ ``-1" $|$ ``0" $|$ ``1" $|$ ... $|$ ``32767" \\
 \emph{Sentence} := ``\$'' \emph{Sensor} ``,'' \emph{Value} ``,'' \emph{Value} ``,'' \emph{Value} ``$\backslash$r$\backslash$n'' \\
@@ -459,9 +460,9 @@ void magSelfTest(void)
 The filtration software was implemented in Haskell. The code may be found on Github at \url{http://github.com/pchickey/hs-qkf/}
 \lstset{language=Haskell}
 \subsection{Algorithm Selection}
-I based the algorithm of Daniel Choukroun's ``A Novel Quaternion Kalman Filter" (cite). The paper defines an algorithm for using both vector (accelerometer and magnetometer) and derivative (rate gyro) measurments optimally. Notably, it updates a quaternion state estimate by finding a Kalman filter observation matrix $H$ which relates body-frame vector measurments to the rotational frame estimate.
+I based the algorithm of Daniel Choukroun's ``A Novel Quaternion Kalman Filter"\cite{choukroun04}. The paper defines an algorithm for using both vector (accelerometer and magnetometer) and derivative (rate gyro) measurments optimally. Notably, it updates a quaternion state estimate by finding a Kalman filter observation matrix $H$ which relates body-frame vector measurments to the rotational frame estimate.
 
-I used James Deibel's "..." (cite) as a reference source for converting angular representations of orientation to quaternion represent ions, and vice versa. 
+I used James Deibel's "Representing Attitude" \cite{deibel06} as a reference source for converting angular representations of orientation to quaternion represent ions, and vice versa. 
 
 \subsection{Implementation of Filter}
 
@@ -679,7 +680,7 @@ observationMatOf r b =
   negdt = liftMatrix (*constant (-1)) (asRow d)
 \end{lstlisting}
 
-The observation matrix (in ..., $H$) is a function of the measurement BodyVec and known RefVec.
+The observation matrix (in \cite{choukroun04}, $H$) is a function of the measurement BodyVec and known RefVec.
 
 \begin{lstlisting}
 zetaMatOf :: Quat -> ZetaMat
@@ -705,7 +706,7 @@ transitionMatOf w dt =
 
 \end{lstlisting}
 
-This transition matrix is derived in ... as a matrix multiplication on a quaternion. I wanted to ensure it was equivalent to the more common derivation, and so I wrote a function below, \lstinline$transitionQuatOf$, which uses quaternion multiplication and the angle-axis method.
+This transition matrix is derived in \cite{choukroun04} as a matrix multiplication on a quaternion. I wanted to ensure it was equivalent to the more common derivation, and so I wrote a function below, \lstinline$transitionQuatOf$, which uses quaternion multiplication and the angle-axis method.
 
 \begin{lstlisting}
 
@@ -801,9 +802,9 @@ fnorm x = pnorm PNorm2 x
 I provide initialized filter states in this module as well, with constants that were found to be appropriate.
 
 \subsection{Implementation of Tests}
-In order to test the quaternion Kalman filter, I wrote some Euler angle translation functions using ... in order to visualize simple rotational frames. The Euler angles have various issues that prevent them from being useful to describe filter state, the most significant of which is the condition called \emph{gimbal lock} where, at``poles'' in the spherical space, it is impossible to determine one of the three angles. An analogy of this problem using the earth's geography as a spherical space is that, from the north pole, each direction is south, and the directions of east and west cannot be determined.
+In order to test the quaternion Kalman filter, I wrote some Euler angle translation functions using \cite{deibel06} in order to visualize simple rotational frames. The Euler angles have various issues that prevent them from being useful to describe filter state, the most significant of which is the condition called \emph{gimbal lock} where, at``poles'' in the spherical space, it is impossible to determine one of the three angles. An analogy of this problem using the earth's geography as a spherical space is that, from the north pole, each direction is south, and the directions of east and west cannot be determined.
 
-I defined two modules, Eulers321 and Eulers313, which use two different conventions to describe euler angles. The derivations for each angle convention is described in ... . I have omitted code below for brevity.
+I defined two modules, Eulers321 and Eulers313, which use two different conventions to describe euler angles. The derivations for each angle convention is described in \cite{deibel06}. I have omitted code below for brevity.
 
 We use these functions below in QkfTest to generate measurements from an Euler angle simulation of the state, and then compare the output state to the input state.
 
@@ -1058,7 +1059,7 @@ serialBegin = do
 
 A \lstinline$SerialPort$'s \lstinline$getChar$ equivelant is \\\lstinline$recvChar :: SerialPort -> IO (Maybe Char)$. The IO is of \lstinline$Maybe Char$ to support a timeout of the \lstinline$recvChar$ call. 
 
-\lstinline$recvChar$ is used here to build a function that returns full lines. Perhaps \lstinline$recvLine$ would have been a better name. It is built based on the \lstinline$getLine$ function described in ... .
+\lstinline$recvChar$ is used here to build a function that returns full lines. Perhaps \lstinline$recvLine$ would have been a better name. It is built based on the \lstinline$getLine$ function described in \cite{spjones00}.
 
 \begin{lstlisting}
 -- from Tackling the Awkward Squad 
@@ -1172,6 +1173,10 @@ step test, ramp test
     \includegraphics[width=0.7\textwidth]{./youtube-screenshot.png}
   \caption{A still from video of an OpenGL demonstration of the sensor. Video available at http://bit.ly/pch-qkf-video}
 \end{figure}
+
+
+\bibliographystyle{plain}
+\bibliography{report}
 
 \end{document}
 
