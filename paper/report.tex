@@ -278,26 +278,188 @@ The timing and logic requirements of the I2C and UART interfaces are handled in 
 
 On reset\footnote{The most common way to program AVR and similar micro controllers is unsupervised by any kernel, therefore ``bare metal''. Essentially, on power on a boot loader checks for new firmware over the serial port, and if none is found, passes control to a single entry point. The C linker will choose \lstinline$main()$ unless told otherwise. This bare metal code can only be superseded by interrupt service routines.}
 , the Arduino environment will initialize and call \lstinline$void setup()$. This code runs once and should setup all of the interfaces which will remain the same throughout execution. The setup code then initializes the configuration registers of the sensor devices, performs sanity checks of those registers to ensure successful writes, and performs the self-test of the magnetometer and accelerometer device. 
+\subsubsection{p4l\_ahrs.pde}
+\begin{lstlisting}
+void setup()
+{
+  // Serial busses
+  Serial.begin(115200); // to computer
+  Wire.begin(); // master device on i2c bus
+  
+  // Status pins
+  pinMode(gyro_pin, INPUT);
+  pinMode(mag_pin, INPUT);
+  pinMode(acc_pin, INPUT);
 
-% listing here
+  // Configure Accellerometer
+  //---------------------------------
 
-Once the \lstinline$setup$ routine has returned, the Arduino environment will call \lstinline$void loop()$ in an endless loop. This code performs reads of any available sensor measurement, and prints the result to the serial port.
+  // Configure the Accellerometer measurment rate
+  i2cWriteWithCheck(ACC_ADDR, ACC_CTL1, 
+    ACC_CTL1_NORMALMODE | ACC_CTL1_50HZ | ACC_CTL1_XYZENABLE, 
+    "acc_ctl1 50hz xyz-enable");
 
-% listing here
+  // Set Accellerometer measurment scale to +-4G
+  i2cWriteWithCheck(ACC_ADDR, ACC_CTL4, ACC_CTL4_SCALE_4G, 
+    "acc_ctl4 scale +-4g"); 
 
-In this code, many operations involve serial reads and writes which block for significant amounts of time. The (... check new) calls actually read registers on the sensor device, which takes a nontrivial amount of time. 
+  // Configure Magnetometer
+  // ------------------------------------
 
+  // Configure the Magnetometer measurment rate
+  i2cWriteWithCheck(MAG_ADDR, MAG_CRA, MAG_CRA_75HZ, 
+    "mag cra 75HZ");
 
+  // Configure the Magnetometer gain
+  i2cWriteWithCheck(MAG_ADDR, MAG_CRB, MAG_CRB_GAIN4_0, 
+    "mag crb gain4.0");
 
-describe Arduino programming environment
-blocking serial calls
--- Provide timing information?
+  // Perform Magnetometer Self Test
+  // ---------------------------------------
+  magSelfTest();
+  delay(100);
+  magSelfTest();
+
+  // Reset testing configuration
+  i2cWriteWithCheck(MAG_ADDR, MAG_CRA, 
+    MAG_CRA_75HZ | MAG_CRA_NORMAL, "mag_cra 75hz");
+
+  // Configure the Magnetometer Conversion Mode - Continuous
+  i2cWriteWithCheck(MAG_ADDR, MAG_MR, MAG_MR_CONTINUOUS, 
+    "mag mr continuous");
+  Serial.println("Exiting Magnetometer Self Test");
+
+  // Configure Rate Gyro
+  // ------------------------------------------
+  // Sample Rate Divider: 1khz / (divider + 1). 
+  // 50hz means divider should be 19
+  i2cWriteWithCheck(GYRO_ADDR, GYRO_SMPLRT_DIV, 19, 
+    "gyro sample rate divider 19");
+  
+  // Internal Low Pass filter: 
+  // 1Khz sample rate, 98Hz bandwidth
+  // Full Scale: +-2000deg/sec
+  i2cWriteWithCheck(GYRO_ADDR, GYRO_DLPF_FS, 
+    GYRO_FS_2000 | GYRO_DLPF_98, "gyro dlpf 98 fs 2000");
+  
+  // Interrupt Configuration:
+  // Active High (default)
+  // Push-Pull (default)
+  // Latch mode
+  // Clear on Any register read
+  // Trigger on Data Ready
+  i2cWriteWithCheck(GYRO_ADDR, GYRO_INT_CFG, 
+    GYRO_INT_MODE_LATCH | GYRO_INT_CLEAR_ANY | 
+      GYRO_INT_CFG_DATA_RDY,
+    "gyro interrupt configuration");
+
+  // Power Managment:
+  // Get clock from X axis gyro
+  i2cWriteWithCheck(GYRO_ADDR, GYRO_PWR, 
+    GYRO_PWR_CLK_GX_REF, 
+    "gyro clock configuration");
+ 
+\end{lstlisting}
+
+Once the \lstinline$setup$ routine has returned, the Arduino environment will call \lstinline$void loop()$ in an endless loop. This code performs reads of any available sensor measurement, and prints the result to the serial port. The \lstinline$NewData()$ predicates are function calls which check the I2C status register on the sensor to see if a measurment is complete.
+
+\begin{lstlisting}
+void loop()
+{
+  if(accNewData())
+  {
+    accReadAndConvert();
+    accSend();
+  }
+  if(magNewData())
+  {
+    magReadAndConvert();  
+    magSend();
+  }  
+  if(gyroNewData())
+  {
+    gyroReadAndConvert();
+    gyroSend();
+  }
+}
+\end{lstlisting}
+
+\lstinline$accNewData$ is a representative predicate:
+\subsubsection{ST\_LSM303\_i2c.pde}
+\begin{lstlisting}
+bool accNewData(void)
+{
+  char stat = i2cReadRegister(ACC_ADDR, ACC_STAT);
+  if (stat & ACC_STAT_XYZDA)
+    return true;
+  else return false;
+}
+\end{lstlisting}
+
+As mentioned previously, the magnetometer self test is nontrivial.
+\begin{lstlisting}
+void magSelfTest(void)
+{
+  Serial.println("$DEBUG,Entering Magnetometer Self Test");
+  magReadAndConvert(); // clear any LOCK state
+  // Trigger a Positive Bias self test
+  Serial.println(
+    "triggering magnetic self test, positive bias");
+  i2cWriteRegister(MAG_ADDR, 
+    MAG_CRA, MAG_CRA_75HZ | MAG_CRA_POSBIAS);
+  i2cWriteWithCheck(MAG_ADDR, MAG_MR, 
+    MAG_MR_SINGLE, "mag mr single");
+  delay(100);
+  magReadAndConvert();
+
+  Serial.print("$DEBUG,mag x nominal 270 test ");
+  Serial.println(mag_x);
+  Serial.print("$DEBUG,mag y nominal 270 test ");
+  Serial.println(mag_y);
+  Serial.print("$DEBUG,mag z nominal 255 test ");
+  Serial.println(mag_z);  
+  float mag_deviation = sqrt( 
+    (mag_x - 270)*(mag_x - 270) + 
+    (mag_y - 270)*(mag_y - 270) +
+    (mag_z - 255)*(mag_z - 255) );
+
+  Serial.print(
+    "$DEBUG,positive bias self test deviation magnitude ");
+  Serial.println(mag_deviation);  
+
+  // Trigger a Negative Bias self test
+  Serial.println(
+    "triggering magnetic self test, negative bias");
+  i2cWriteRegister(MAG_ADDR, MAG_CRA, 
+    MAG_CRA_75HZ | MAG_CRA_NEGBIAS);
+  i2cWriteWithCheck(MAG_ADDR, MAG_MR, 
+    MAG_MR_SINGLE, "mag mr single");
+  delay(100);
+  magReadAndConvert();
+
+  Serial.print("$DEBUG,mag x nominal -270 test ");
+  Serial.println(mag_x);
+  Serial.print("$DEBUG,mag y nominal -270 test ");
+  Serial.println(mag_y);
+  Serial.print("$DEBUG,mag z nominal -255 test ");
+  Serial.println(mag_z);
+  mag_deviation = sqrt( 
+    (mag_x + 270)*(mag_x + 270) + 
+    (mag_y + 270)*(mag_y + 270) +
+    (mag_z + 255)*(mag_z + 255) );
+  Serial.print(
+    "$DEBUG,negative bias self test deviation magnitude ");
+  Serial.println(mag_deviation);  
+  
+  return;
+}
+\end{lstlisting}
 
 \section{Filtration Software}
 The filtration software was implemented in Haskell. The code may be found on Github at \url{http://github.com/pchickey/hs-qkf/}
 \lstset{language=Haskell}
 \subsection{Algorithm Selection}
-I based the algorithm of Daniel Choukroun's "A Novel Quaternion Kalman Filter" (cite). The paper defines an algorithm for using both vector (accelerometer and magnetometer) and derivative (rate gyro) measurments optimally. Notably, it updates a quaternion state estimate by finding a Kalman filter observation matrix $H$ which relates body-frame vector measurments to the rotational frame estimate.
+I based the algorithm of Daniel Choukroun's ``A Novel Quaternion Kalman Filter" (cite). The paper defines an algorithm for using both vector (accelerometer and magnetometer) and derivative (rate gyro) measurments optimally. Notably, it updates a quaternion state estimate by finding a Kalman filter observation matrix $H$ which relates body-frame vector measurments to the rotational frame estimate.
 
 I used James Deibel's "..." (cite) as a reference source for converting angular representations of orientation to quaternion represent ions, and vice versa. 
 
