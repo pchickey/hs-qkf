@@ -17,30 +17,30 @@
 \input{./title.tex}
 
 \begin{abstract}
-This paper describes the design of an Attitude and Heading Reference Sensor (AHRS), which measures rootational orientation relative to north and down. 
-The design uses 3-axis accellerometer, magnetometer, and rate gyro sensors. 
+This paper describes the design of an Attitude and Heading Reference Sensor (AHRS), which measures rotational orientation relative to north and down. 
+The design uses 3-axis accelerometer, magnetometer, and rate gyro sensors. 
 I will discuss the selection and construction of the sensor hardware, design and implementation of a Kalman filter for sensor fusion, and the test of both the sensor hardware and software.
 \end{abstract}
 
 
 \section{Problem Description}
 
-The goal of this project was to design and build sensor hardware and software that would determine the angular orientation and angular rotation rate of the sensor relative to the earth frame, ie. North, East, and Down. I selected sensor integrated circuits (ICs) which determine, on three axes, body accelleration, body rotation rate, and relative magnetic field. These three sensors (accellerometer, rate gyro, and magnetometer) provide a total of nine measurments. 
+The goal of this project was to design and build sensor hardware and software that would determine the angular orientation and angular rotation rate of the sensor relative to the earth frame, IE. North, East, and Down. I selected sensor integrated circuits (ICs) which determine, on three axes, body acceleration, body rotation rate, and relative magnetic field. These three sensors (accelerometer, rate gyro, and magnetometer) provide a total of nine measurements. 
 
-An algorithm is required to convert these nine measurments into an expression of angular orientation and angular rate (the derivative, with respect to time, of angular orientation). Angular orientation of a body has three degrees of freedom, as does angular rate. The conversion from measurment space to estimate space (a pair of angular orientation estimate and angular rate estimate) is nonlinear and uses a four-dimensional vector called a quaternion to describe the three-dimensional angular orientation. This is to say, a big part of the problem is ensuring the correctness of this difficult conversion process.   
+An algorithm is required to convert these nine measurements into an expression of angular orientation and angular rate (the derivative, with respect to time, of angular orientation). Angular orientation of a body has three degrees of freedom, as does angular rate. The conversion from measurement space to estimate space (a pair of angular orientation estimate and angular rate estimate) is nonlinear and uses a four-dimensional vector called a quaternion to describe the three-dimensional angular orientation. This is to say, a big part of the problem is ensuring the correctness of this difficult conversion process.   
 
-I selected a well-known algorithm which implements a Quaternion Kalman Filter. This provides an state estimate using the four-dimensional quaternion vector, and an additional three-dimensional rotational rate vector. I needed to implement that software so that I could test it for correctness and use it to determine the orientation of an actual sensor. This software was to be used in an actual model aircraft autopilot system, so it must meet requirments for reliability and soft real-time performance.
+I selected a well-known algorithm which implements a Quaternion Kalman Filter. This provides an state estimate using the four-dimensional quaternion vector, and an additional three-dimensional rotational rate vector. I needed to implement that software so that I could test it for correctness and use it to determine the orientation of an actual sensor. This software was to be used in an actual model aircraft autopilot system, so it must meet requirements for reliability and soft real-time performance.
 
 \subsection{Application}
 
 As part of my role on the Rutgers Autonomous Aircraft Team, I've been working on a model aircraft autopilot system based on a single board computer which runs Linux \footnote{For more information on this project, see \url{http://moreproductive.org/autopilot/}}. I implemented the control, navigation, and telemetry software in C using standard Linux system calls and threads. I used dedicated hardware for real-time tasks, for example, a microcontroller-based servo controller connected via USB ensures proper servo control despite irregular communication intervals from the computer. 
 By using helper threads for input and output, we can be reasonably sure the main control loop will run at close to 60Hz. This is considered ``soft'' real-time.
 
-The sensor software needs to cooperate with the soft real-time main control loop. In order to stabilize a fixed-wing aircraft, we need to update the main control loop's orientation estimate at at least 30Hz, preferably at 60Hz. So the sensor hardware must provide new measurments at a rate exceeding 30Hz, a complete measurment every 33ms. The sensor filtration software must complete computation in much less than a measurment period as not to dominate the CPU. Lets consider a target time of 500us per computation.
+The sensor software needs to cooperate with the soft real-time main control loop. In order to stabilize a fixed-wing aircraft, we need to update the main control loop's orientation estimate at at least 30Hz, preferably at 60Hz. So the sensor hardware must provide new measurements at a rate exceeding 30Hz, a complete measurement every 33ms. The sensor filtration software must complete computation in much less than a measurement period as not to dominate the CPU. Lets consider a target time of 500us per computation.
 
 \subsection{Use of Haskell}
 
-The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source implementations of functionally similar software is available. Similarily, there are a lot of existing resources for Matlab, which is a strong platform for simulation and plotting. However, the Matlab language is not as powerful as C or C++, and is of limited use testing with actual hardware. 
+The sensor software I describe in this paper is typically implemented in a low level language such as C or C++ in order to give the programmer explicit control over memory allocation and input-output (IO) calls. In fact, open source implementations of functionally similar software is available. Similarly, there are a lot of existing resources for Matlab, which is a strong platform for simulation and plotting. However, the Matlab language is not as powerful as C or C++, and is of limited use testing with actual hardware. 
 
 I decided to write the filter software using Haskell. Haskell is a purely functional language with a powerful type system, and is not typically used for soft real-time applications. However, I believe Haskell is well suited for writing algorithms because it can express mathematical concepts elegantly, and often transparently. It is often possible to reason about Haskell code in the exact same way as mathematics. This results in code which is code more readable and more easily modified. 
 
@@ -50,49 +50,49 @@ I decided to write the filter software using Haskell. Haskell is a purely functi
 
 The theoretical basis for this paper has been primarily drawn from -- cite dchoukrouns paper. I hope this section provides a clear explanation of how that theory applies to this project.
 
-\subsection{Measurment Vectors}
-Because the sensors are fixed to the frame (\emph{body}) we're estimating the orientation, accellerometer and magnetometer provide us with vector measurments in the body frame. We denote body frame vectors with $b_x$. The expecte vector of that measurment in the global frame is $g_x$. For example, the expected global frame accelleration $g_a = \begin{bmatrix} 0 & 0 & -1\end{bmatrix} $ in units normalized to $1g$ ($9.81m/s^2$)
+\subsection{Measurement Vectors}
+Because the sensors are fixed to the frame (\emph{body}) we're estimating the orientation, accelerometer and magnetometer provide us with vector measurements in the body frame. We denote body frame vectors with $b_x$. The expected vector of that measurement in the global frame is $g_x$. For example, the expected global frame acceleration $g_a = \begin{bmatrix} 0 & 0 & -1\end{bmatrix} $ in units normalized to $1g$ ($9.81m/s^2$)
 
 By comparing a body frame vector to the global frame vector, we can find a rotation which transforms the global frame into the body frame. We call this the orientation estimate.  
 
-\subsubsection{Accellerometer Measurment}
+\subsubsection{Accelerometer Measurement}
 
-An accellerometer measures force exerted by a small test mass against a beam connected to the sensor body. The current generation of MEMS accellerometers uses etched silicon to build the test mass and beam structure, and measures the capicatance between the test mass and sensor body to determine the beam deflection. Since an accellerometer can only measure deflection, and therefore accelleration, in one direction, we use three separate sensors oriented to measure accelleration along three orthogonal axes. These three separate measured accellerations ($a_x, a_y, a_z$) can be considered as a three dimensional vector 
+An accelerometer measures force exerted by a small test mass against a beam connected to the sensor body. The current generation of MEMS accelerometers uses etched silicon to build the test mass and beam structure, and measures the capacitance between the test mass and sensor body to determine the beam deflection. Since an accelerometer can only measure deflection, and therefore acceleration, in one direction, we use three separate sensors oriented to measure acceleration along three orthogonal axes. These three separate measured accelerations ($a_x, a_y, a_z$) can be considered as a three dimensional vector 
 \begin{equation} \label{eq:defa}
   a = \begin{bmatrix}a_x&a_y&a_z \end{bmatrix}
 \end{equation}
 
-According to Newton's second law, $F = m a$ , the force on a body will be directly proportional to the accelleration of the body. When we consider a small test mass $m_t$ on a beam, and the system is at rest, the mass will exert a force $F_g = m_t g_b$, where $g$ is the accelleration due to gravity in the body frame. A body accelleration ab will exert a force $F_a = m_t a_b$. The sensor measures the sum of these two forces, so for any $F = F_g + F_a = m_t ( g_b + a_b )$. Because $m_t$ is constant, we can define the scaled measurment $a$ as 
+According to Newton's second law, $F = m a$ , the force on a body will be directly proportional to the acceleration of the body. When we consider a small test mass $m_t$ on a beam, and the system is at rest, the mass will exert a force $F_g = m_t g_b$, where $g$ is the acceleration due to gravity in the body frame. A body acceleration ab will exert a force $F_a = m_t a_b$. The sensor measures the sum of these two forces, so for any $F = F_g + F_a = m_t ( g_b + a_b )$. Because $m_t$ is constant, we can define the scaled measurement $a$ as 
 \begin{equation} \label{eq:defza}
   a = \frac{F}{m_t} = g_b + a_b
 \end{equation} 
  
-In this application we're interesting in estimating $b_a$ in order to find the vector, in the body frame, which points straight down in the world frame. We include a measurment noise vector $\delta_a$, and find measurment $z_b$ as
+In this application we're interesting in estimating $b_a$ in order to find the vector, in the body frame, which points straight down in the world frame. We include a measurement noise vector $\delta_a$, and find measurement $z_b$ as
 \begin{equation} \label{eq:findgb}
   z_a = b_a + a_b + \delta_a
 \end{equation}
 
-On a body such as an aircraft, where accellerations $a_b$ may come from any direction at any time, we consider $a_b$ to be a zero-mean gaussian random vector with a covariance matrix 
+On a body such as an aircraft, where accelerations $a_b$ may come from any direction at any time, we consider $a_b$ to be a zero-mean Gaussian random vector with a covariance matrix 
 \begin{equation} \label{eq:Qa}
   Q_a = \begin{pmatrix} \sigma_a^2 & 0 & 0 \\
 	                      0 & \sigma_a^2 & 0 \\ 
 	                      0 & 0 & \sigma_a^2 \end{pmatrix} 
 \end{equation}
 
-Covariance matrix $Q_a$ will be used in the measurment model of the Kalman Filter. We typically estimate a value for $\sigma_a$ to be between 2$g$ and 4$g$ for airborne applications. Since $\delta_a$ will be zero-mean and have a small variance compared to $a_b$ we can neglect it.
+Covariance matrix $Q_a$ will be used in the measurement model of the Kalman Filter. We typically estimate a value for $\sigma_a$ to be between 2$g$ and 4$g$ for airborne applications. Since $\delta_a$ will be zero-mean and have a small variance compared to $a_b$ we can neglect it.
 
-\subsubsection{Magnetometer Measurment}
+\subsubsection{Magnetometer Measurement}
 
 A magnetometer measures the magnitude magnetic field in one direction. I refer the interested reader to ... for a physical explanation of magnetometer sensors. The three separate measured magnetic field magnitudes ($m_x, m_y, m_z$) are considered as a three dimensional vector
 \begin{equation} \label{eq:defb}
   m = \begin{bmatrix} m_x & m_y & m_z \end{bmatrix}
 \end{equation}
 
-The measured magnetic field $z_m$ will be the sum of three vectors: the natural magnetic field of the earth in the body frame $b_m$, the magnetic field of the body $m_s$, and measurment noise $\delta_m$.
+The measured magnetic field $z_m$ will be the sum of three vectors: the natural magnetic field of the earth in the body frame $b_m$, the magnetic field of the body $m_s$, and measurement noise $\delta_m$.
 \begin{equation} \label{eq:zm}
   z_m = b_m + m_s + \delta_m
 \end{equation}
-In this filter we assume the magnetic field of the body $m_s$ to be constant\footnote{Electrical and mechanical components which emit a changing electromagnetic field, such as DC motors and switching power supplies, will cause trouble.}. We will estimate $m_s$ for the particular body the sensor is installed in. Measurment noise $\delta_m$ will be considered a zero-mean gaussian random vector with covariance matrix
+In this filter we assume the magnetic field of the body $m_s$ to be constant\footnote{Electrical and mechanical components which emit a changing electromagnetic field, such as DC motors and switching power supplies, will cause trouble.}. We will estimate $m_s$ for the particular body the sensor is installed in. Measurement noise $\delta_m$ will be considered a zero-mean Gaussian random vector with covariance matrix
 \begin{equation} \label{eq:Qm}
   Q_m = \begin{pmatrix} \sigma_m^2 & 0 & 0 \\
 	                      0 & \sigma_m^2 & 0 \\ 
@@ -104,25 +104,25 @@ We will estimate $\sigma_m$ from a long sequence of samples taken with the filte
 The earth's magnetic field, in the global frame ($g_m$), will point towards magnetic north when projected onto a horizontal plane. (talk about magnetic field strength, magnetic declination angle here)
 
 
-\subsubsection{Rate Gyro Measurment}
+\subsubsection{Rate Gyro Measurement}
 
 A rate gyro measures the rotation rate of a body about a single axis. We use three orthogonal rate gyros to estimate the rotational rate of the body, considered as a vector
 \begin{equation} \label{eq:omega}
 	\omega = \begin{bmatrix} \omega_x & \omega_y & \omega_z \end{bmatrix}
 \end{equation}
-The measurment $z_\omega$ can be considered as
+The measurement $z_\omega$ can be considered as
 \begin{equation} \label{eq:zomega}
 	z_\omega = \omega + \Delta_\omega + \delta_\omega
 \end{equation}
 where rate gyro zero offset $\Delta_\omega$ is the constant vector output when the sensor body is at rest,
-and measurment noise $\delta_\omega$ is a zero-mean gaussian random vector with covariance matrix
+and measurement noise $\delta_\omega$ is a zero-mean Gaussian random vector with covariance matrix
 \begin{equation} \label{eq:Qomega}
 	Q_\omega = \begin{pmatrix} \sigma_\omega^2 & 0 & 0 \\
 	                  ]    0 & \sigma_\omega^2 & 0 \\ 
 	                      0 & 0 & \sigma_\omega^2 \end{pmatrix} 
 \end{equation}
 
-In reality, zero offset $\Delta_\omega$ may drift with time and change in temperature. Compensation for this gyro drift is outside the scope of this paper, but has been solved in --cite dchokrouns better paper.
+In reality, zero offset $\Delta_\omega$ may drift with time and change in temperature. Compensation for this gyro drift is outside the scope of this paper, but has been solved in --cite Dacrons better paper.
 
 \subsection{Quaternion Representation}
 
@@ -130,7 +130,7 @@ There are a wide variety of resources which formally describe quaternions and th
 
 A quaternion is a complex number with three imaginary components, $i,j,k$, which are defined such that $i^2 = j^2 = k^2 = ijk = -1$. Quaternions span a four-dimensional real-numbered space where a quaternion $a + b i + c j + d k$ can be considered as a vector $\begin{bmatrix}a & b & c & d \end{bmatrix}$. 
 
-Quaternion multiplication is a noncommutative operation: $q_1 q_2$ is not equal to $q_2 q_1$ for all quaternions $q_1, q_2$. This property is useful because spatial rotation is a noncommutative operation as well.
+Quaternion multiplication is a non-commutative operation: $q_1 q_2$ is not equal to $q_2 q_1$ for all quaternions $q_1, q_2$. This property is useful because spatial rotation is a non-commutative operation as well.
 
 The set of unit quaternions, all $q$ where $ ||q|| = 1$, are used to represent spatial rotations. For every unit quaternion $q$ 
 there exists a unit vector $\mathbf{v} = \begin{bmatrix} v_x & v_y & v_z \end{bmatrix}, ||v|| = 1$ 
@@ -144,23 +144,23 @@ I refer the reader to --citations for more detailed information.
 
 \section{Hardware}
 \subsection{Sensors}
-In order to simplify the design of the sensor module, I selected two digital ICs which contain all of the sensing elements and analog to digital interfaces onboard. 
-Both digital devices selected require no external passive or active components aside from bypass capicators. Analog sensors, by comparison, often require several amplifier and filter components per channel, and often, for high resolution sensing applications, a discrete analog to digital converter (ADC) IC. In addition, analog ICs generally require an isolated ``quiet'' power and ground from digital ICs. 
+In order to simplify the design of the sensor module, I selected two digital ICs which contain all of the sensing elements and analog to digital interfaces on board. 
+Both digital devices selected require no external passive or active components aside from bypass capacitors. Analog sensors, by comparison, often require several amplifier and filter components per channel, and often, for high resolution sensing applications, a discrete analog to digital converter (ADC) IC. In addition, analog ICs generally require an isolated ``quiet'' power and ground from digital ICs. 
 
-\subsubsection{Three-axis Accellerometer and Magnetometer}
-ST Micro's LSM303DLH, a three-axis accellerometer and magnetometer, was selected for this project. A single 6x6mm surface mount package contains both an accellerometer and magnetometer module, each with their own analog to digital converters and two-wire (I2C) serial interface. 
+\subsubsection{Three-axis Accelerometer and Magnetometer}
+ST Micro's LSM303DLH, a three-axis accelerometer and magnetometer, was selected for this project. A single 6x6mm surface mount package contains both an accelerometer and magnetometer module, each with their own analog to digital converters and two-wire (I2C) serial interface. 
 
-The three-axis accellerometer has a maximum range of ... and ... bits (... g) of resolution. The maximum sample rate is ... samples per second.
+The three-axis accelerometer has a maximum range of ... and ... bits (... g) of resolution. The maximum sample rate is ... samples per second.
 
-The accellerometer module includes a self-test functionality, which ...
+The accelerometer module includes a self-test functionality, which ...
 I've implemented a boot time self-test in the embedded code.
 
-The three-axis magnetometer has a maximum measurment range of  and ... bits (... unit) of resulution. The maximum sample rate is ... samples per second. 
+The three-axis magnetometer has a maximum measurement range of  and ... bits (... unit) of resolution. The maximum sample rate is ... samples per second. 
 
 The magnetometer module includes a self-test functionality, which ...
 I've implemented a boot time self-test in the embedded code.
 
-The LSM303DLH is presently (May 2010) unreleased by ST Micro. I would like to thank ST Micro for donating an evaluation board to my project. The evaluation board provided 0.1" pitch headers, and connected both the accellerometer and magnetometer module's I2C bus to a common pair of pins. It also provides a configurable interrupt output pin for both the accellerometer and magnetometer module. The board takes 3.3v power and ground.
+The LSM303DLH is presently (May 2010) unreleased by ST Micro. I would like to thank ST Micro for donating an evaluation board to my project. The evaluation board provided 0.1" pitch headers, and connected both the accelerometer and magnetometer module's I2C bus to a common pair of pins. It also provides a configurable interrupt output pin for both the accelerometer and magnetometer module. The board takes 3.3v power and ground.
 
 % should include a photograph, citation
 
@@ -191,21 +191,22 @@ A schematic drawing is provided in the appendix. % do this
 \section{Embedded Software}
 The code described in this section can be found at \url{http://github.com/pchickey/p4l-ahrs}. It is built using the open source Arduino IDE, which can be found at \url{http://arduino.cc}.
 
-\subsection{Requirments}
+\subsection{Requirements}
 The embedded software primarily needs to send the measurments read from the I2C bus to the host computer on its 
 UART\footnote{Universal Asynchronous Receive and Transmit; the receive/transmit method used by many serial protocols including RS232} 
 interface. Each sensor has a number of configuration registers which are accessed through the I2C interface which need to be 
 
 \subsection{Sensor Communication}
 
-The communication protocol for each sensor is best detailed in their datasheet, and I will not discuss them in depth here. The basic unit of interface is register read and register write. Some registers (for example, the latest measurment) are read-only, and reads may effect the state of the device. For example, a read of a register measurment on the ITG-3200 will clear the ``new measurment available'' flag on another register.   
+The communication protocol for each sensor is detailed in their data sheets, and I will not discuss them in depth here. The basic unit of interface is register read and register write. Some registers (for example, the latest measurement) are read-only, and reads may effect the state of the device. For example, a read of a register measurement on the ITG-3200 will clear the ``new measurement available'' flag on another register.   
 
 Read Register and Write Register commands both block for nontrivial amounts of time.
 \lstset{language=C++,basicstyle=\ttfamily}
 From i2c\_registers.pde
 \begin{lstlisting}
 #include <Wire.h>
-char i2cReadRegister(int i2c_device, char i2c_register)
+char i2cReadRegister(int i2c_device, 
+                     char i2c_register)
 {
   Wire.beginTransmission(i2c_device);
   Wire.send(i2c_register);
@@ -213,9 +214,10 @@ char i2cReadRegister(int i2c_device, char i2c_register)
   Wire.requestFrom(i2c_device, 1);
   return Wire.receive();  
 }
-
-void i2cReadRegisterSequential(int i2c_device, char i2c_register, 
-        int len, char * buf)
+void i2cReadRegisterSequential(int i2c_device, 
+                               char i2c_register, 
+                               int len, 
+                               char * buf)
 {
   Wire.beginTransmission(i2c_device);
   Wire.send(i2c_register);
@@ -226,7 +228,9 @@ void i2cReadRegisterSequential(int i2c_device, char i2c_register,
     buf[ii] = Wire.receive();
   return;
 }
-void i2cWriteRegister(int i2c_device, char i2c_register, char value)
+void i2cWriteRegister(int i2c_device, 
+                      char i2c_register, 
+                      char value)
 {
   Wire.beginTransmission(i2c_device);
   Wire.send(i2c_register);
@@ -237,7 +241,7 @@ void i2cWriteRegister(int i2c_device, char i2c_register, char value)
 
 The \lstinline$Wire$ library is provided by the Arduino IDE.  The \lstinline$Wire$ object is instantiated as the interface to the single I2C peripheral\footnote{For more information on the I2C bus, see ...} on the AtMega chip. The peripheral will control the bus state and provide byte-at-a-time synchronous transmit and receive. 
 
-Note that \lstinline$beginTransmission(int)$, \lstinline$send(char)$, and \lstinline$requestFrom(int, int)$ only return after 8 bits have been sent on the I2C bus. At a bitrate of 100kHz we can expect this to take 80$\mu$s (0.08ms). A call to \lstinline$receive()$ will not return until one byte has been received on the bus. If the slave device responds immediately, this will only take 80$mu$s, but could possibly take longer if the slave device misbehaves and holds the bus in ``wait to receive'' state.
+Note that \lstinline$beginTransmission(int)$, \lstinline$send(char)$, and \lstinline$requestFrom(int, int)$ only return after 8 bits have been sent on the I2C bus. At a bit rate of 100kHz we can expect this to take 80$\mu$s (0.08ms). A call to \lstinline$receive()$ will not return until one byte has been received on the bus. If the slave device responds immediately, this will only take 80$mu$s, but could possibly take longer if the slave device misbehaves and holds the bus in ``wait to receive'' state.
 \begin{lstlisting}
 void i2cWriteWithCheck(int i2c_device, char i2c_register, 
         char value, char* name)
@@ -266,14 +270,14 @@ A simple serial protocol, based on NMEA-style sentences (cite), is defined for c
 \subsection{Arduino Environment}
 The Arduino environment is an IDE, C/C++ compiler, and collection of libraries for AtMega328 and similar Atmel AVR microcontrollers. It provides a high level interface to the hardware and is suitable for rapid prototype development. 
 
-The timing and logic requirments of the I2C and UART interfaces are handled in hardware, and the Arduino environment provides a library for blocking read and write operations on both of these interfaces. 
+The timing and logic requirements of the I2C and UART interfaces are handled in hardware, and the Arduino environment provides a library for blocking read and write operations on both of these interfaces. 
 
-On reset\footnote{The most common way to program AVR and similar microcontrollers is unsupervised by any kernel, therefore ``bare metal''. Essentially, on power on a bootloader checks for new firmware over the serial port, and if none is found, passes control to a single entry point. The C linker will choose \lstinline$main()$ unless told otherwise. This bare metal code can only be superceded by interrupt service routines.}
-, the Arduino environment will intitialize and call \lstinline$void setup()$. This code runs once and should setup all of the interfaces which will remain the same throughout execution. The setup code then initializes the configuration registers of the sensor devices, performs sanity checks of those registers to ensure successful writes, and performs the self-test of the magnetometer and accellerometer device. 
+On reset\footnote{The most common way to program AVR and similar micro controllers is unsupervised by any kernel, therefore ``bare metal''. Essentially, on power on a boot loader checks for new firmware over the serial port, and if none is found, passes control to a single entry point. The C linker will choose \lstinline$main()$ unless told otherwise. This bare metal code can only be superseded by interrupt service routines.}
+, the Arduino environment will initialize and call \lstinline$void setup()$. This code runs once and should setup all of the interfaces which will remain the same throughout execution. The setup code then initializes the configuration registers of the sensor devices, performs sanity checks of those registers to ensure successful writes, and performs the self-test of the magnetometer and accelerometer device. 
 
 % listing here
 
-Once the \lstinline$setup$ routine has returned, the Arduino environment will call \lstinline$void loop()$ in an endless loop. This code performs reads of any available sensor measurment, and prints the result to the serial port.
+Once the \lstinline$setup$ routine has returned, the Arduino environment will call \lstinline$void loop()$ in an endless loop. This code performs reads of any available sensor measurement, and prints the result to the serial port.
 
 % listing here
 
@@ -281,7 +285,7 @@ In this code, many operations involve serial reads and writes which block for si
 
 
 
-describe arduino programming environment
+describe Arduino programming environment
 blocking serial calls
 -- Provide timing information?
 
@@ -289,9 +293,9 @@ blocking serial calls
 The filtration software was implemented in Haskell. The code may be found on Github at \url{http://github.com/pchickey/hs-qkf/}
 \lstset{language=Haskell}
 \subsection{Algorithm Selection}
-I based the algorithm of Daniel Choukroun's "A Novel Quaternion Kalman Filter" (cite). The paper defines an algorithm for using both vector (accellerometer and magnetometer) and derivative (rate gyro) measurments optimally. Notably, it updates a quaternion state estimate by finding a Kalman filter observation matrix $H$ which relates body-frame vector measurments to the rotational frame estimate.
+I based the algorithm of Daniel Choukroun's "A Novel Quaternion Kalman Filter" (cite). The paper defines an algorithm for using both vector (accelerometer and magnetometer) and derivative (rate gyro) measurments optimally. Notably, it updates a quaternion state estimate by finding a Kalman filter observation matrix $H$ which relates body-frame vector measurments to the rotational frame estimate.
 
-I used James Deibel's "..." (cite) as a reference source for converting angular representations of orientation to quaternion representions, and vice versa. 
+I used James Deibel's "..." (cite) as a reference source for converting angular representations of orientation to quaternion represent ions, and vice versa. 
 
 \subsection{Implementation of Filter}
 
@@ -324,7 +328,7 @@ q3 = (@>2)
 \end{lstlisting}
 
 \subsubsection{Qkf.hs}
-The quaternion Kalman filter is implemented in a single haskell module.
+The quaternion Kalman filter is implemented in a single Haskell module.
 \begin{lstlisting}
 
 module Qkf where
@@ -408,7 +412,7 @@ crossProdMat v =
 
 \end{lstlisting}
 
-The \lstinline& [$mat| |] & and \lstinline& [$vec| |] & macros make it possible to construct matricies and vectors in a similar syntax to Matlab, which greatly aids readability.
+The \lstinline& [$mat| |] & and \lstinline& [$vec| |] & macros make it possible to construct matrices and vectors in a similar syntax to Matlab, which greatly aids readability.
 
 \begin{lstlisting}
 
@@ -495,7 +499,7 @@ vecQLeftMat b =
   negbot = liftMatrix (*constant (-1)) (asRow b)
 \end{lstlisting}
 
-Hmatrix-static provides operators \lstinline$<->$ and \lstinline$<|>$ to join matricies horizontally and vertically.
+Hmatrix-static provides operators \lstinline$<->$ and \lstinline$<|>$ to join matrices horizontally and vertically.
 
 \begin{lstlisting}
 observationMatOf :: RefVec -> BodyVec -> ObservationMat
@@ -509,7 +513,7 @@ observationMatOf r b =
   negdt = liftMatrix (*constant (-1)) (asRow d)
 \end{lstlisting}
 
-The observation matrix (in ..., $H$) is a function of the measurment BodyVec and known RefVec.
+The observation matrix (in ..., $H$) is a function of the measurement BodyVec and known RefVec.
 
 \begin{lstlisting}
 zetaMatOf :: Quat -> ZetaMat
@@ -523,7 +527,7 @@ zetaMatOf qq =
 
 \end{lstlisting}
 
-The matrix $\Xi$, which I ignorantly coded as ``Zeta,'' maps measurment error into the state space in the same way the matrix $H$ maps measurments into the state space.
+The matrix $\Xi$, which I ignorantly coded as ``Zeta,'' maps measurement error into the state space in the same way the matrix $H$ maps measurments into the state space.
 
 \begin{lstlisting}
 transitionMatOf :: AngularRate -> Time -> TransitionMat
@@ -535,7 +539,7 @@ transitionMatOf w dt =
 
 \end{lstlisting}
 
-This transition matrix is derived in ... as a matrix multiplication on a quaternion. I wanted to ensure it was equivelant to the more common derivation, and so I wrote a function below, \lstinline$transitionQuatOf$, which uses quaternion multiplication and the angle-axis method.
+This transition matrix is derived in ... as a matrix multiplication on a quaternion. I wanted to ensure it was equivalent to the more common derivation, and so I wrote a function below, \lstinline$transitionQuatOf$, which uses quaternion multiplication and the angle-axis method.
 
 \begin{lstlisting}
 
@@ -557,7 +561,8 @@ timePropogate r s =
   phi = transitionMatOf (omega r) (dt r)
   zeta = zetaMatOf (q s)
   zetat = ((dt r)/2)^2
-  qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))
+  qkq = 
+    liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))
 
 timePropogate' :: RateEstimate -> FilterState -> FilterState
 timePropogate' r s = 
@@ -568,10 +573,11 @@ timePropogate' r s =
   phi = transitionMatOf (omega r) (dt r)
   zeta = zetaMatOf (q s)
   zetat = (^2) . (/2) . dt $ r
-  qkq = liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))  
+  qkq = 
+    liftMatrix (*constant zetat) (zeta <> (qke r) <> (trans zeta))  
 
 \end{lstlisting}
-Two similar versions of timePropogate, the second explicitly using quaternion multiplication for propogation. This is an example which demonstrates how simple it is to modify an algorithm in Haskell.
+Two similar versions of timePropogate, the second explicitly using quaternion multiplication for propagation. This is an example which demonstrates how simple it is to modify an algorithm in Haskell.
 
 \begin{lstlisting}
 
@@ -594,11 +600,12 @@ measurmentUpdate m s =
   up = (i4 - k <> h)
 
 \end{lstlisting}
-A measurment update maps FilterState to FilterState with a Measurment. If that doesn't make nice semantic sense, I don't know what does. 
+A measurement update maps FilterState to FilterState with a Measurment. If that doesn't make nice semantic sense, I don't know what does. 
 
 \begin{lstlisting}
 
-rateEstimateUpdate :: Measurment -> Time -> RateEstimate -> RateEstimate
+rateEstimateUpdate :: Measurment -> Time -> 
+                       RateEstimate -> RateEstimate
 rateEstimateUpdate Measurment { source = Gyro, body = b } adt re = 
   RateEstimate { omega = (omega re) + constant k * residual
                , qke = (qke re)
@@ -609,15 +616,19 @@ rateEstimateUpdate Measurment { source = Gyro, body = b } adt re =
 
 rateEstimateUpdate _ _ re = re 
 \end{lstlisting}
-We implement a simple \lstinline$rateEstimateUpdate$ function which is a simple low pass filter on rate gyro \lstinline$Measurment$s into a \lstinline$RateEstimate$ usable by \lstinline$timePropogate$. This same filter is used by the real implementation as well.
+We implement a simple \lstinline$rateEstimateUpdate$ function which is a simple low pass filter on rate gyro \lstinline$Measurement$s into a \lstinline$RateEstimate$ usable by \lstinline$timePropogate$. This same filter is used by the real implementation as well.
 \begin{lstlisting}
 -- rezero: initial state for rate estimate. 
-rezero = RateEstimate { omega = [$vec|0,0,0|]
-                      , dt = 0.02
-                      , qke = liftMatrix (*constant 10) (atRows ident d3) }
-fszero = FilterState { q = qzero
-                     -- p is large to account for random initial position
-                     , p = liftMatrix (*constant 5) (atRows ident d4) }
+rezero = 
+  RateEstimate 
+    { omega = [$vec|0,0,0|]
+    , dt = 0.02
+    , qke = liftMatrix (*constant 10) (atRows ident d3) }
+fszero = 
+  FilterState 
+    { q = qzero
+    -- p is large to account for random initial position
+    , p = liftMatrix (*constant 5) (atRows ident d4) }
 
 fnorm x = pnorm PNorm2 x
 \end{lstlisting}
@@ -626,9 +637,9 @@ I provide initialized filter states in this module as well, with constants that 
 \subsection{Implementation of Tests}
 In order to test the quaternion Kalman filter, I wrote some Euler angle translation functions using ... in order to visualize simple rotational frames. The Euler angles have various issues that prevent them from being useful to describe filter state, the most significant of which is the condition called \emph{gimbal lock} where, at``poles'' in the spherical space, it is impossible to determine one of the three angles. An analogy of this problem using the earth's geography as a spherical space is that, from the north pole, each direction is south, and the directions of east and west cannot be determined.
 
-I defined two modules, Eulers321 and Eulers313, which use two different conventions to describe euler angles. The derivations for each angle convention is described in ... . I have ommited code below for brevity.
+I defined two modules, Eulers321 and Eulers313, which use two different conventions to describe euler angles. The derivations for each angle convention is described in ... . I have omitted code below for brevity.
 
-We use these functions below in QkfTest to generate measurments from an euler angle simulation of the state, and then compare the output state to the input state.
+We use these functions below in QkfTest to generate measurements from an Euler angle simulation of the state, and then compare the output state to the input state.
 
 \subsubsection{Eulers321.hs}
 \begin{lstlisting}
@@ -653,12 +664,19 @@ psi e = e @> 2
 ezero :: Eulers
 ezero = [$vec|0,0,0|]
 
+\end{lstlisting}
+Excuse the following carriage returns
+\begin{lstlisting}
+
 -- Make a rotation matrix from Euler angles. Deibel (449)
 matOfEulers :: Eulers -> RotMatrix
 matOfEulers eulers = 
-  [$mat| cphi*cthe , sphi*cpsi + cphi*sthe*spsi , sphi*spsi - cphi*sthe*cpsi 
-       ;-sphi*cthe , cphi*cpsi - sphi*sthe*spsi , cphi*spsi + sphi*sthe*cpsi
-       ;  sthe     ,-spsi*cthe                  , cpsi*cthe                  |]
+  [$mat| cphi*cthe , sphi*cpsi + cphi*sthe*spsi ,
+                        sphi*spsi - cphi*sthe*cpsi 
+       ;-sphi*cthe , cphi*cpsi - sphi*sthe*spsi , 
+                        cphi*spsi + sphi*sthe*cpsi
+       ;  sthe     ,-spsi*cthe                  , 
+                        cpsi*cthe                  |]
   where
   cphi = cos . phi   $ eulers
   sphi = sin . phi   $ eulers
@@ -690,12 +708,12 @@ eulersOfQ q =
               -- keep args to asin in [-1,1]
 
 -- Euler Angle Rate Matrix
--- omega = E(u) * udot  where omega is body fixed angular rates, u is euler angles
+-- omega = E(u) * udot  where omega is body fixed angular rates, u is Euler angles
 -- Deibel (453)
 type Emat = Matrix (D3,D3) Double
 -- Deibel (453)
 ematOfEulers :: Eulers -> Emat
--- ommited for brevity
+-- omited for brevity
 \end{lstlisting}
 
 \subsubsection{QkfTest.hs}
@@ -713,16 +731,17 @@ import Eulers321
 import Qkf
 
 \end{lstlisting}
-The to Measurment functions are used to simulate a measurment given Eulers.
+The to Measurement functions are used to simulate a measurement given Euler angles. \lstinline$matOfEulers$ produces a rotation matrix, \lstinline$ematOfEulers$ transforms the global derivatives of Euler angles into the body frame. 
 \begin{lstlisting}
 
--- Measurment functions: generate a filter input from Euler angles
+-- Measurement functions: generate a filter input from Euler angles
 toVecMeasurment :: MeasurmentSource -> RefVec -> Eulers -> Measurment
 toVecMeasurment s r e = 
   Measurment{ source = s
             , body = (matOfEulers e) <> r
             , ref = r
-            , meascov = liftMatrix (* constant 0.00001) (atRows ident d3) }
+            , meascov = 
+                liftMatrix (* constant 0.00001) (atRows ident d3) }
 
 toAccMeasurment = toVecMeasurment Accelerometer [$vec|0,0,-1|] 
 toMagMeasurment = toVecMeasurment Magnetometer [$vec|1,0,0|] 
@@ -732,14 +751,16 @@ toGyroMeasurment e edot =
   Measurment { source = Gyro
              , body = (inv $ ematOfEulers e) <> edot 
              , ref = [$vec|0,0,0|]
-             , meascov = liftMatrix (* constant 0.01) (atRows ident d3) }
+             , meascov = 
+                 liftMatrix (* constant 0.01) (atRows ident d3) }
 
 \end{lstlisting}
-\lstinline$generateWalk$ is a good example of a Haskell operation on lists. Given an initial euler angle, a list of derivatives, and the simulation time between elements in the derivative list, it will produce a list of eulers.
+\lstinline$generateWalk$ is a good example of a Haskell operation on lists. Given an initial Euler angle, a list of derivatives, and the simulation time between elements in the derivative list, it will produce a list of eulers.
 \begin{lstlisting}
 
--- given: initial euler angles, list of derivatives, time step between derivatives
--- produces: list of resulting euler angles
+-- given: initial Euler angles, list of derivatives, 
+-- time step between derivatives
+-- produces: list of resulting Euler angles
 generateWalk :: Eulers -> [WorldAngularRate]-> Time -> [Eulers]
 generateWalk e (edot:edots) dt = (e:es)
                   where e' = advanceConst e edot dt
@@ -748,11 +769,14 @@ generateWalk _ [] _ = []
 
 \end{lstlisting}
 
-\lstinline$feedfilter$ takes a timestep, a list of the simulated measurments, and a tuple of the two filter states. It produces a list of resulting filter states. 
+\lstinline$feedfilter$ takes a time step, a list of the simulated measurments, and a tuple of the two filter states. It produces a list of resulting filter states. 
 
 \begin{lstlisting}
-feedfilter :: Time -> [(Measurment, Measurment, Measurment)] -> (FilterState, RateEstimate) -> [(FilterState, RateEstimate)]
-feedfilter dt ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
+feedfilter :: Time -> [(Measurment, Measurment, Measurment)] -> 
+               (FilterState, RateEstimate) -> 
+               [(FilterState, RateEstimate)]
+feedfilter dt ((ma, mm, mg):ms) (state,rate) = 
+  ((state,rate):states)
   where 
     s'acc = measurmentUpdate ma state
     s'mag = measurmentUpdate mm s'acc
@@ -761,16 +785,20 @@ feedfilter dt ((ma, mm, mg):ms) (state,rate) = ((state,rate):states)
     states = feedfilter dt ms (s'gyro, rate')
 \end{lstlisting}
 
-\lstinline$statictest$ implements test commonly refered to as the ``unit step,'' where the filter is given a steady state input at t=0 to test convergence from the initial value. This function has the filter seek \lstinline$e$ = $(\pi/4, \pi/3, 0)$. f
+\lstinline$statictest$ implements test commonly referred to as the ``unit step,'' where the filter is given a steady state input at t=0 to test convergence from the initial value. This function has the filter seek \lstinline$e$ = $(\pi/4, \pi/3, 0)$. f
 
 \begin{lstlisting}
 statictest = do
   let e = [$vec| pi/4, pi/3, 0 |] :: Eulers
   let edot = [$vec| 0,0,0 |]
-  let f = feedfilter 0.05 (repeat 
-                      (toAccMeasurment e, toMagMeasurment e, toGyroMeasurment e edot)) 
-                     (fszero, rezero)
-  plotLists [] $ (stateqs $ take 10 f) ++ (justqs $ take 10 $ repeat $ qOfEulers e)
+  let f = feedfilter 0.05 
+           (repeat 
+             ( toAccMeasurment e
+             , toMagMeasurment e
+             , toGyroMeasurment e edot)) 
+           (fszero, rezero)
+  plotLists [] $ (stateqs $ take 10 f) ++ 
+    (justqs $ take 10 $ repeat $ qOfEulers e)
   let q10th =  q . fst . last . take 10 $ f
   putStrLn "Filtered quaternion after 10 iterations:"
   putStrLn $ show q10th
@@ -784,7 +812,9 @@ statictest = do
 velocitytest = do
   let einit = [$vec| pi/4, pi/3, 0 |] :: Eulers
   let edot = [$vec|pi/3, -pi/12, 0|] :: WorldAngularRate
-  let edots = (replicate 10 [$vec|0,0,0|]) ++ (replicate 25 edot) ++ repeat [$vec|0,0,0|]
+  let edots = (replicate 10 [$vec|0,0,0|]) ++ 
+              (replicate 25 edot) ++ 
+              repeat [$vec|0,0,0|]
   let dt = 0.05 -- 20hz
   let walk = generateWalk einit edots dt
  
@@ -798,7 +828,7 @@ velocitytest = do
 
 It would be nice to plot, as in Matlab, to examine the filter input and output. Using the \lstinline$Graphics.Gnuplot.Simple$ library\footnote{\lstinline$Graphics.Gnuplot.Simple$ is a simple interface to the \lstinline$Graphics.Gnuplot$ library, distributed on hackage as the \emph{gnuplot} package. \url{http://hackage.haskell.org/package/gnuplot}}, we can examine our results immediately after execution. 
 
-These functions might be the weakest point of comparison to Matlab, as they're quite verbose in order to fully customize the graph before plotting. There is also a library bug which prevents plots from being labeled. This portion of the project leaves room for future improvment, but gets the job done.
+These functions might be the weakest point of comparison to Matlab, as they're quite verbose in order to fully customize the graph before plotting. There is also a library bug which prevents plots from being labeled. This portion of the project leaves room for future improvement, but gets the job done.
 
 \begin{lstlisting}
 plotQuaternions walks filters =
@@ -837,12 +867,12 @@ plotEulers walks filters =
 
 \subsection{Sensor Interface}
 \subsubsection{SerialQKF.hs}
-Its pretty easy to use serial ports in Haskell. \lstinline$System.Hardware.Serialport$\footnote{On Hackage, the \emph{serialport} package: \url{http://hackage.haskell.org/package/serialpot/}} provides full access to the baud settings and extra signals on my FT232-based USB to Serial converter.
+It is pretty easy to use serial ports in Haskell. \lstinline$System.Hardware.Serialport$\footnote{On Hackage, the \emph{serialport} package: \url{http://hackage.haskell.org/package/serialpot/}} provides full access to the baud settings and extra signals on my FT232-based USB to Serial converter.
 \begin{lstlisting}
 module SerialQKF where
 import System.Hardware.Serialport
 import Control.Monad hiding (forM, forM_)
-import Data.Foldable -- has instance Foldable Maybe, so we can forM across Maybes
+import Data.Foldable
 import Control.Monad.Loops
 import Control.Concurrent
 import Numeric.LinearAlgebra.Static
@@ -850,7 +880,8 @@ import Qkf
 
 serialBegin :: IO SerialPort
 serialBegin = do
-  s <- openSerial "/dev/ftdi5" defaultSerialSettings { baudRate = B115200 }
+  s <- openSerial "/dev/ftdi5" defaultSerialSettings 
+                                { baudRate = B115200 }
   -- next 3 lines: toggle reset on Arduino
   setDTR s False
   threadDelay 500000
@@ -859,27 +890,56 @@ serialBegin = do
 
 \end{lstlisting}
 
-A \lstinline$SerialPort$'s \lstinline$getChar$ equivelant is \lstinline$recvChar :: SerialPort -> IO (Maybe Char)$. The IO is of \lstinline$Maybe Char$ to support a timeout of the \lstinline$recvChar$ call. 
+A \lstinline$SerialPort$'s \lstinline$getChar$ equivelant is \\\lstinline$recvChar :: SerialPort -> IO (Maybe Char)$. The IO is of \lstinline$Maybe Char$ to support a timeout of the \lstinline$recvChar$ call. 
 
 \lstinline$recvChar$ is used here to build a function that returns full lines. Perhaps \lstinline$recvLine$ would have been a better name. It is built based on the \lstinline$getLine$ function described in ... .
 
 \begin{lstlisting}
 -- from Tackling the Awkward Squad 
 getLineMaybe :: SerialPort -> IO [Char] 
-getLineMaybe s = do { c <- recvChar s;
-                      case c of
-                      Just '\n' -> return []
-                      Just a    -> do { cs <- getLineMaybe s;
-                                      return (a:cs) }
-                      Nothing   -> do { cs <- getLineMaybe s;
-                                      return(cs) }
-                    }
+getLineMaybe s = do 
+  c <- recvChar s;
+  case c of
+    Just '\n' -> return []
+    Just a    -> do { cs <- getLineMaybe s;
+                            return (a:cs) }
+    Nothing   -> do { cs <- getLineMaybe s;
+                            return(cs) }
+       
+\end{lstlisting}
+Omitted for brevity:
+There is some parsing code which converts the line into a \lstinline$Measurment$. 
+There is some calibration code that applies a predetermined offset and scale to a \lstinline$Measurment$ based on its source.
+There is also a utility that prints the running minimum and maximum magnetometer and accelerometer measurments to the screen. This is useful to for determining the scale and offset for each axis, by rotating the sensor through the minimum and maximum points for each axis. 
+
+Parsed and calibrated \lstinline$Measurment$s are sent to other Haskell threads using \lstinline$Control.Concurrent$'s \lstinline$SampleVar$ interface. A \lstinline$SampleVar$ works as follows: a value can be written at anytime from any thread. If the variable is `empty,' a write `fills' it. If the variable is already `full,' a write overwrites the current value. A read can also be initiated at any time from any thread. If the variable is empty, the read will block until the variable becomes full, and then behave as a `filled' read. When the variable is `filled,' a read `empties' it. 
+
+\begin{lstlisting}
+sampleCalibrated :: (SampleVar Measurment, SampleVar Measurment, 
+                      SampleVar Measurment) -> IO ()
+sampleCalibrated (acccal, magcal, gyrocal) = do
+  s <- serialBegin
+  forever $ do
+    l <- getLineMaybe s
+    forM_ (parseLine l) $
+      \parsed -> 
+        let calibrated = offsetandscale parsed in
+        case calibrated of 
+          CM Accelerometer _ _ _ ->  
+            writeSampleVar  acccal calibrated
+          CM Magnetometer _ _ _  ->  
+            writeSampleVar  magcal calibrated
+          CM Gyro _ _ _          ->  
+            writeSampleVar gyrocal calibrated
+    threadDelay 50
 \end{lstlisting}
 
-\subsection{Gnuplot Interface}
-overview, code snippets
+\lstinline$SampleVar$s are used here to ensure that the filter (reading) thread always operates on the most recent of each measurement, by making a separate \lstinline$SampleVar$ for each measurement. The filter thread will not be able to proceed until an entire new set of measurements are available.
+
 \subsection{OpenGL Demonstration Interface}
-cube.hs overview, code snippets 
+
+For an effective demonstration of the filter's real-time performance with the sensor attached, I used the HOpenGL library's bindings to OpenGL and the OpenGL Utility Toolkit (GLUT). I reused some example code found online to render a cube on the screen, and 
+
 \subsection{Paparazzi Autopilot Interface}
 ffi, linux mq
 "ongoing investigation" is code for, I haven't done it yet
@@ -888,9 +948,9 @@ ffi, linux mq
 
 I managed to use Haskell to achieve soft real-time without resorting to C, and was able to simulate and visualize my algorithm with the ease and power normally associated with Matlab. Haskell allowed me to test the filter with both 2D plots and real-time 3D rendering with both simulated data and sensor data.
 
-\subsection{Noise-free simulated measurments}
+\subsection{Noise-free simulated measurements}
 Plots of step test, ramp test
-\subsection{Noisy simulated measurments}
+\subsection{Noisy simulated measurements}
 step test, ramp test
 \subsection{Tests with Sensor}
 plots, link to video on youtube
