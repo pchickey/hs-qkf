@@ -152,14 +152,11 @@ Both digital devices selected require no external passive or active components a
 ST Micro's LSM303DLH, a three-axis accelerometer and magnetometer, was selected for this project. A single 6x6mm surface mount package contains both an accelerometer and magnetometer module, each with their own analog to digital converters and two-wire (I2C) serial interface. 
 
 The three-axis accelerometer has a maximum range of 
-... and ... bits (... g) of resolution. The maximum sample rate is ... samples per second.
+8$g$ and 16 bits of resolution. The maximum sample rate is 120 samples per second.
 
-The accelerometer module includes a self-test functionality, which ...
-I've implemented a boot time self-test in the embedded code.
+The three-axis magnetometer has 16 bits of resolution. The maximum sample rate is 75 samples per second. 
 
-The three-axis magnetometer has a maximum measurement range of  and ... bits (... unit) of resolution. The maximum sample rate is ... samples per second. 
-
-The magnetometer module includes a self-test functionality, which ...
+The magnetometer module includes a self-test functionality, which
 I've implemented a boot time self-test in the embedded code.
 
 The LSM303DLH is presently (May 2010) unreleased by ST Micro. I would like to thank ST Micro for donating an evaluation board to my project. The evaluation board provided 0.1" pitch headers, and connected both the accelerometer and magnetometer module's I2C bus to a common pair of pins. It also provides a configurable interrupt output pin for both the accelerometer and magnetometer module. The board takes 3.3v power and ground.
