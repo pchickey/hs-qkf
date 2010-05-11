@@ -2,6 +2,7 @@
 \usepackage[pdftex]{graphicx}
 \usepackage{url}
 \usepackage{amsmath}
+\usepackage{subfig}
 \usepackage{listings}
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
 % correct bad hyphenation here
@@ -167,7 +168,7 @@ The LSM303DLH is presently (May 2010) unreleased by ST Micro. I would like to th
 
 \subsubsection{Three-axis Rate Gyro}
 
-Invensense's ITG-3200, a three-axis rate gyro, was selected for this project. A 4x4mm surface mount package contains three gyro axes, analog to digital converters, and a two-wire (I2C) serial interface. It has a full scale range of $\pm 2000$ degrees per second (deg/s) and 16 bits (14.375 LSB/deg/s) of resolution. The maximum sample rate is ... samples per second. Because the rate gyro is a MEMS device, it is important that the device is isolated from severe shocks, such as drops, which could cause internal damage.
+Invensense's ITG-3200, a three-axis rate gyro, was selected for this project. A 4x4mm surface mount package contains three gyro axes, analog to digital converters, and a two-wire (I2C) serial interface. It has a full scale range of $\pm 2000$ degrees per second (deg/s) and 16 bits (14.375 LSB/deg/s) of resolution. The maximum sample rate is 70 samples per second. Because the rate gyro is a MEMS device, it is important that the device is isolated from severe shocks, such as drops, which could cause internal damage.
 
 The ITG-3200 was released by Invensense in April 2010 and is presently their flagship digital sensor. I would like to thank Invensense for donating an evaluation board to my project. The ITG-3200 was provided on an evaluation board with 0.1" pitch headers. It requires a pair of signals for I2C, an optional interrupt output signal, and 3.3v power and ground. The optional interrupt output signal can be configured to signal when an analog to digital conversion is complete.
 
@@ -184,9 +185,15 @@ The sensor board connects to the host computer with an FTDI serial to USB conver
 
 Because each sensor evaluation board used 0.1" pitch pins, I was able to use a 0.1" pitch protoboard and female pin headers to build a prototype sensor. The assembled sensor prototype is 2.5" x 4.5" x 0.75" in outer dimensions. To prevent electrostatic discharge and physical damage, it is velcroed inside a protective cardboard box with a lining of stiff anti-static foam. 
 
-% picture
+\begin{figure}
+	\centering
+	\subfloat[Top view]{\includegraphics[width=0.5\textwidth]{sensor-top.JPG}}
+	\subfloat[Bottom view]{\includegraphics[width=0.5\textwidth]{sensor-bottom.JPG}}
+	\caption{Photograph of completed sensor board}
+	\label{fig:sensorphoto}
+\end{figure}
 
-A schematic drawing is provided in the appendix. % do this
+% A schematic drawing is provided in the appendix. % do this
 
 \lstset{language=C++,basicstyle=\ttfamily}
 \section{Embedded Software}
@@ -1165,8 +1172,7 @@ I managed to use Haskell to achieve soft real-time without resorting to C, and w
 
 \subsection{Noise-free simulated measurements}
 Plots of step test, ramp test
-\subsection{Noisy simulated measurements}
-step test, ramp test
+
 \subsection{Tests with Sensor}
 \begin{figure}
   \centering
