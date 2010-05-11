@@ -1171,13 +1171,30 @@ I have not yet completed an interface to another C process. This will require in
 I managed to use Haskell to achieve soft real-time without resorting to C, and was able to simulate and visualize my algorithm with the ease and power normally associated with Matlab. Haskell allowed me to test the filter with both 2D plots and real-time 3D rendering with both simulated data and sensor data.
 
 \subsection{Noise-free simulated measurements}
-Plots of step test, ramp test
-
+\begin{figure}
+	\centering
+	\includegraphics[width=0.7\textwidth]{./plots/statictest.png}
+	\caption{A unit step test. Straight lines are the input state. Converges almost instantly.}
+	\label{fig:statictest}
+\end{figure}
+\begin{figure}
+	\centering
+	\includegraphics[width=0.7\textwidth]{./plots/velocitytest-quat.png}
+	\caption{A unit ramp test. At rest for $t = [0,9]$. Constant angular velocity for $t = [10,39]$. At rest from $t = [40,50]$. Solid lines are input state, dotted lines are estimated state. Plot of quaternion components.} 
+	\label{fig:velocitytest-quat}
+\end{figure}
+\begin{figure}
+	\centering
+	\includegraphics[width=0.7\textwidth]{./plots/velocitytest-eulers.png}
+	\caption{Identical test to \ref{fig:velocitytest-quat}. Plot of Euler angles.}
+	\label{fig:velocitytest-eulers}
+\end{figure}
 \subsection{Tests with Sensor}
 \begin{figure}
-  \centering
-    \includegraphics[width=0.7\textwidth]{./youtube-screenshot.png}
-  \caption{A still from video of an OpenGL demonstration of the sensor. Video available at http://bit.ly/pch-qkf-video}
+	\centering
+	\includegraphics[width=0.7\textwidth]{./youtube-screenshot.png}
+	\caption{A still from video of an OpenGL demonstration of the sensor. Video available at \texttt{http://bit.ly/pch-qkf-video}}
+	\label{fig:sensoryoutube}
 \end{figure}
 
 
