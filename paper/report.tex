@@ -938,11 +938,59 @@ sampleCalibrated (acccal, magcal, gyrocal) = do
 
 \subsection{OpenGL Demonstration Interface}
 
-For an effective demonstration of the filter's real-time performance with the sensor attached, I used the HOpenGL library's bindings to OpenGL and the OpenGL Utility Toolkit (GLUT). I reused some example code found online to render a cube on the screen, and 
+For an effective demonstration of the filter's real-time performance with the sensor attached, I used the HOpenGL library's bindings to OpenGL and the OpenGL Utility Toolkit (GLUT). I reused some example code found online to render a cube on the screen, and hooked it into the filter using another \lstinline$SampleVar$. I won't list the OpenGL here for brevity, but it can be found in Cube.hs. Here is the interprocess communication setup code:
+
+\subsubsection{runsensor.hs}
+\begin{lstlisting}
+import Numeric.LinearAlgebra.Static
+import Control.Concurrent
+import Qkf
+import QkfTest
+import Cube
+import SerialQKF
+import Graphics.Gnuplot.Simple
+
+type CalSampleVar = SampleVar CalibratedMeasurment
+type ThreeCalSamples = (CalSampleVar, CalSampleVar, CalSampleVar)
+type KFilter = (FilterState, RateEstimate)
+type ThreeMeas = (Measurment, Measurment, Measurment)
+type ThreeCals = (CalibratedMeasurment, CalibratedMeasurment, CalibratedMeasurment)
+
+main = do
+  acccal   <- newEmptySampleVar
+  magcal   <- newEmptySampleVar
+  gyrocal  <- newEmptySampleVar
+  filtered <- newEmptySampleVar
+  reslog <- newChan
+
+  t1 <- forkIO $ sampleCalibrated (acccal, magcal, gyrocal)
+  t2 <- forkIO $ loopAndSend filtered 
+			     (filterSamples (acccal, magcal, gyrocal)) 
+			     (fszero, rezero) reslog
+  forkIO $ cubewith filtered >> killThread t1 >> killThread t2
+  plotresults reslog
+
+filterSamples :: ThreeCalSamples -> KFilter ->  IO (KFilter, ThreeMeas)
+filterSamples (acccal, magcal, gyrocal) (fstate, rstate) = 
+ let dt = 0.03 in
+ do
+  latestacc <- readSampleVar acccal
+  latestmag <- readSampleVar magcal
+  latestgyro <- readSampleVar gyrocal
+  let acc = accMeasurment latestacc
+  let mag = magMeasurment latestmag latestacc
+  let gyro = gyroMeasurment latestgyro  
+  let fs'acc = measurmentUpdate acc fstate
+  let fs'mag = measurmentUpdate mag fs'acc
+  let rstate' = rateEstimateUpdate gyro dt rstate
+  let fs'gyro = timePropogate rstate' fs'mag
+  
+  return ((fs'gyro, rstate'), (acc, mag, gyro))
+
+\end{lstlisting}
 
 \subsection{Paparazzi Autopilot Interface}
-ffi, linux mq
-"ongoing investigation" is code for, I haven't done it yet
+I have not yet completed an interface to another C process. This will require interprocess communication, most likely through the Linux Message Queue (mq) system.
 
 \section{Results}
 
