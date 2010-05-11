@@ -260,12 +260,16 @@ void i2cWriteWithCheck(int i2c_device, char i2c_register,
   }
 }
 \end{lstlisting}
-In the boot configuration of sensors, I use a wrapper on \lstinline$i2cWriteRegister$ which confirms a write was successful. Unsuccessful writes usually indicate the sensor is malfunctioning.
+In the boot configuration of sensors, I use a wrapper on \lstinline$ i2cWriteRegister $ which confirms a write was successful. Unsuccessful writes usually indicate the sensor is malfunctioning.
 
 % calculate best-case blocking time based on bus bitrate (100kbps?)
 
 \subsection{Host Computer Communication}
-A simple serial protocol, based on NMEA-style sentences (cite), is defined for communication with the host computer. 
+A simple serial protocol, based on NMEA-style sentences (cite), is defined for communication with the host computer. The grammar for these sentences is \\
+\emph{Sensor} := ``M" $|$ ``A" $|$ ``G" \\
+\emph{Value} := ``-32768" $|$ ``-32767" $|$ ... $|$ ``-1" $|$ ``0" $|$ ``1" $|$ ... $|$ ``32767" \\
+\emph{Sentence} := ``\$'' \emph{Sensor} ``,'' \emph{Value} ``,'' \emph{Value} ``,'' \emph{Value} ``$\backslash$r$\backslash$n'' \\
+where the \emph{Value}s in \emph{Sentence} are the (x,y,z) axis measurments, in that order.
 
 \subsection{Arduino Environment}
 The Arduino environment is an IDE, C/C++ compiler, and collection of libraries for AtMega328 and similar Atmel AVR microcontrollers. It provides a high level interface to the hardware and is suitable for rapid prototype development. 
@@ -1001,7 +1005,11 @@ Plots of step test, ramp test
 \subsection{Noisy simulated measurements}
 step test, ramp test
 \subsection{Tests with Sensor}
-plots, link to video on youtube
+\begin{figure}
+  \centering
+    \includegraphics[width=0.7\textwidth]{./youtube-screenshot.png}
+  \caption{A still from video of an OpenGL demonstration of the sensor. Video available at http://bit.ly/pch-qkf-video}
+\end{figure}
 
 \end{document}
 
