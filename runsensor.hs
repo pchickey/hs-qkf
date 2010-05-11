@@ -2,6 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 import Numeric.LinearAlgebra.Static
 import Control.Concurrent
+import Eulers321
 import Qkf
 import QkfTest
 import Cube
@@ -53,7 +54,7 @@ plotresults rchan = do
   let (mxs, mys, mzs) = unzip3vec (map body mags)
   let (gxs, gys, gzs) = unzip3vec (map body gyros)
   let (qxs, qys, qzs, qws) = unzip4vec (map q fstates)
-  let (ephis, ethetas, epsis) = unzip3vec (map (eulers321OfQ . q) fstates)
+  let (ephis, ethetas, epsis) = unzip3vec (map (eulersOfQ . q) fstates)
   plotLists [Title "Accelerometer"] $ [axs, ays, azs]
   plotLists [Title "Magnetometer"] [mxs, mys, mzs]
   --plotLists [Title "Gyros"] [gxs, gys, gzs]
